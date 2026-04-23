@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DB6K — Inverted Index Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0c0f;
+    --surface:   #111418;
+    --border:    #1e2530;
+    --border2:   #2a3445;
+    --accent:    #00e5ff;
+    --accent2:   #ff6b35;
+    --accent3:   #a8ff78;
+    --muted:     #4a5568;
+    --text:      #c8d6e5;
+    --text-dim:  #6b7f96;
+    --danger:    #ff4757;
+    --mono:      'JetBrains Mono', monospace;
+    --display:   'Syne', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,229,255,0.015) 2px,
+      rgba(0,229,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 24px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0;
+    background: rgba(10,12,15,0.92);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.4);
+  }
+
+  .logo span { color: var(--text-dim); font-weight: 400; font-size: 13px; margin-left: 10px; font-family: var(--mono); }
+
+  #status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  #status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  #status-dot.online { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+  #status-dot.loading { background: var(--accent); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Layout ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    min-height: calc(100vh - 65px);
+  }
+
+  /* ── Left Panel ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Section headers ── */
+  .section-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+  }
+
+  .section-header .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* ── Upload Zone ── */
+  .upload-zone {
+    margin: 20px;
+    border: 1px dashed var(--border2);
+    border-radius: 4px;
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,229,255,0.03) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.04);
+  }
+
+  .upload-zone:hover::before { opacity: 1; }
+
+  .upload-icon {
+    font-size: 28px;
+    margin-bottom: 10px;
+    display: block;
+    opacity: 0.6;
+  }
+
+  .upload-zone p { color: var(--text-dim); font-size: 12px; line-height: 1.8; }
+  .upload-zone strong { color: var(--text); }
+
+  #file-input { display: none; }
+
+  /* ── DB Info ── */
+  #db-info {
+    margin: 0 20px 16px;
+    padding: 12px 16px;
+    background: rgba(168,255,120,0.06);
+    border: 1px solid rgba(168,255,120,0.2);
+    border-radius: 4px;
+    display: none;
+  }
+
+  #db-info.show { display: block; }
+
+  .db-name {
+    color: var(--accent3);
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .db-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+  }
+
+  .stat-item { color: var(--text-dim); font-size: 11px; }
+  .stat-item strong { color: var(--accent); font-size: 12px; }
+
+  /* ── Filter Builder ── */
+  .filter-section {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+  }
+
+  .filter-section::-webkit-scrollbar { width: 4px; }
+  .filter-section::-webkit-scrollbar-track { background: transparent; }
+  .filter-section::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  #filters-container {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filter-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    animation: slideIn 0.2s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .filter-card-header {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .filter-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    font-weight: 500;
+  }
+
+  .filter-remove {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 16px; line-height: 1;
+    padding: 2px 4px;
+    transition: color 0.2s;
+  }
+  .filter-remove:hover { color: var(--danger); }
+
+  .filter-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── Selects & Inputs ── */
+  select, input[type="text"] {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+  }
+
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a5568'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; cursor: pointer; }
+
+  select:focus, input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,229,255,0.1);
+  }
+
+  select option { background: #1a1f2e; }
+
+  .tcv-badge {
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 3px 8px;
+    background: rgba(0,229,255,0.06);
+    border-radius: 2px;
+    display: none;
+  }
+  .tcv-badge.found { display: block; color: var(--accent); }
+  .tcv-badge.missing { display: block; color: var(--danger); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 3px;
+    border: none;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+  .btn-primary:hover { background: #33eaff; box-shadow: 0 0 16px rgba(0,229,255,0.4); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border2);
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.04); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid rgba(255,71,87,0.3);
+  }
+  .btn-danger:hover { background: rgba(255,71,87,0.1); }
+
+  .filter-actions {
+    padding: 0 20px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .search-bar {
+    margin: 16px 20px 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .search-bar .btn { flex: 1; }
+
+  /* ── Right Panel ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Results area ── */
+  #results-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  #results-area::-webkit-scrollbar { width: 4px; }
+  #results-area::-webkit-scrollbar-track { background: transparent; }
+  #results-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .empty-state {
+    height: 100%;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-dim);
+  }
+
+  .empty-state .big-icon { font-size: 48px; opacity: 0.3; }
+  .empty-state h3 { font-family: var(--display); font-size: 18px; font-weight: 600; color: var(--muted); }
+  .empty-state p { font-size: 12px; text-align: center; max-width: 320px; line-height: 1.8; }
+
+  /* ── Result Meta ── */
+  .result-meta {
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .result-count {
+    font-family: var(--display);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .result-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .applied-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  .filter-tag {
+    padding: 4px 10px;
+    background: rgba(255,107,53,0.1);
+    border: 1px solid rgba(255,107,53,0.25);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--accent2);
+    font-family: var(--mono);
+  }
+
+  /* ── Result Cards ── */
+  .results-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+    transition: border-color 0.15s;
+  }
+
+  .result-card:hover { border-color: var(--border2); }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .result-card-header {
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0,229,255,0.03);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .result-card-header:hover { background: rgba(0,229,255,0.06); }
+
+  .row-badge {
+    padding: 2px 8px;
+    background: rgba(0,229,255,0.1);
+    border-radius: 2px;
+    font-size: 11px;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .table-badge {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .tr-id-badge {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .chevron {
+    margin-left: 4px;
+    color: var(--muted);
+    transition: transform 0.2s;
+    font-size: 10px;
+  }
+  .result-card.open .chevron { transform: rotate(180deg); }
+
+  .result-card-body {
+    display: none;
+    padding: 12px 14px;
+  }
+  .result-card.open .result-card-body { display: block; }
+
+  .row-data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+
+  .row-field {
+    background: rgba(0,0,0,0.2);
+    border-radius: 3px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+  }
+
+  .field-key {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+
+  .field-val {
+    color: var(--text);
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  .field-val.null { color: var(--muted); font-style: italic; }
+
+  /* ── Error / Warning ── */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .alert-error {
+    background: rgba(255,71,87,0.08);
+    border: 1px solid rgba(255,71,87,0.3);
+    color: var(--danger);
+  }
+
+  .alert-warning {
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.3);
+    color: var(--accent2);
+  }
+
+  /* ── Download strip ── */
+  #download-strip {
+    padding: 12px 24px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  #download-strip.show { display: flex; }
+  #download-strip span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-right: 4px; }
+
+  .dl-link {
+    padding: 4px 12px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 2px;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .dl-link:hover { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.06); }
+
+  /* ── Upload progress ── */
+  #upload-progress {
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+    display: none;
+    margin: 0 20px;
+    border-radius: 1px;
+  }
+  #upload-progress.show { display: block; }
+  #upload-progress::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -50%;
+    width: 50%; height: 100%;
+    background: var(--accent);
+    animation: progress-bar 1s infinite linear;
+  }
+  @keyframes progress-bar {
+    from { left: -50%; }
+    to   { left: 150%; }
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text);
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.25s;
+    z-index: 999;
+    max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-color: rgba(168,255,120,0.4); color: var(--accent3); }
+  #toast.error   { border-color: rgba(255,71,87,0.4);  color: var(--danger); }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,229,255,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DB6K <span>// Inverted Index Explorer</span></div>
+  <div id="status-badge">
+    <div id="status-dot"></div>
+    <span id="status-text">No database loaded</span>
+  </div>
+</header>
+
+<div class="main-grid">
+
+  <!-- ── Left Panel ── -->
+  <div class="left-panel">
+    <div class="section-header"><div class="dot"></div>Database</div>
+
+    <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <span class="upload-icon">⬡</span>
+      <p><strong>Drop a .db file here</strong><br>or click to browse</p>
+    </div>
+    <div id="upload-progress"></div>
+    <input type="file" id="file-input" accept=".db">
+
+    <div id="db-info">
+      <div class="db-name">⬡ <span id="db-filename">—</span></div>
+      <div class="db-stats" id="db-stats"></div>
+    </div>
+
+    <div class="section-header"><div class="dot"></div>Filters <span style="margin-left:auto;font-size:10px;opacity:0.5">(conjunctive AND)</span></div>
+
+    <div class="filter-section">
+      <div id="filters-container"></div>
+      <div class="filter-actions">
+        <button class="btn btn-ghost" onclick="addFilter()" id="add-filter-btn" disabled>+ Add Filter</button>
+        <button class="btn btn-danger" onclick="clearFilters()" id="clear-btn" style="display:none">Clear All</button>
+      </div>
+      <div class="search-bar">
+        <button class="btn btn-primary" onclick="runSearch()" id="search-btn" disabled>
+          <span>Search</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right Panel ── -->
+  <div class="right-panel">
+    <div class="section-header"><div class="dot"></div>Results</div>
+
+    <div id="results-area">
+      <div class="empty-state" id="empty-state">
+        <div class="big-icon">◈</div>
+        <h3>No Query Yet</h3>
+        <p>Upload a SQLite database, add one or more (table, column, value) filters, and run a conjunctive search.</p>
+      </div>
+      <div id="results-content" style="display:none"></div>
+    </div>
+
+    <div id="download-strip">
+      <span>Export ↓</span>
+      <a class="dl-link" href="/download/tcv_to_id.csv">tcv_to_id.csv</a>
+      <a class="dl-link" href="/download/id_to_tcv.csv">id_to_tcv.csv</a>
+      <a class="dl-link" href="/download/tr_to_id.csv">tr_to_id.csv</a>
+      <a class="dl-link" href="/download/inverted_index.csv">inverted_index.csv</a>
+      <a class="dl-link" href="/download/inverted_index.txt">index.txt</a>
+      <a class="dl-link" href="/download/db6k.dat">db6k.dat</a>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://localhost:8000'; // ← change this to your backend URL
+let schema = {};
+let filterCount = 0;
+
+// ── Status polling ──────────────────────────────────────────────────────────
+async function checkStatus() {
+  try {
+    const r = await fetch(`${API}/status`);
+    const d = await r.json();
+    if (d.db_loaded) {
+      setStatusOnline(d.db_name);
+    }
+  } catch {}
+}
+
+function setStatusOnline(name) {
+  document.getElementById('status-dot').className = 'online';
+  document.getElementById('status-text').textContent = name || 'Connected';
+}
+
+function setStatusLoading() {
+  document.getElementById('status-dot').className = 'loading';
+  document.getElementById('status-text').textContent = 'Indexing…';
+}
+
+function setStatusOffline() {
+  document.getElementById('status-dot').className = '';
+  document.getElementById('status-text').textContent = 'No database loaded';
+}
+
+// ── Upload ──────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) uploadFile(f); });
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) uploadFile(fileInput.files[0]); });
+
+async function uploadFile(file) {
+  if (!file.name.endsWith('.db')) { toast('Only .db files are accepted', 'error'); return; }
+
+  setStatusLoading();
+  document.getElementById('upload-progress').classList.add('show');
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r = await fetch(`${API}/upload`, { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || 'Upload failed');
+
+    document.getElementById('upload-progress').classList.remove('show');
+    setStatusOnline(file.name);
+    showDbInfo(file.name, d.stats);
+    await loadSchema();
+    document.getElementById('add-filter-btn').disabled = false;
+    document.getElementById('download-strip').classList.add('show');
+    toast(`Indexed ${d.stats.total_postings?.toLocaleString() || '?'} postings`, 'success');
+
+    // Reset filters & results
+    clearFilters();
+    showEmpty();
+  } catch (e) {
+    setStatusOffline();
+    document.getElementById('upload-progress').classList.remove('show');
+    toast(e.message, 'error');
+  }
+}
+
+function showDbInfo(name, stats) {
+  document.getElementById('db-filename').textContent = name;
+  const el = document.getElementById('db-stats');
+  el.innerHTML = '';
+  const items = [
+    ['Tables',    stats.tables?.length || 0],
+    ['Postings',  (stats.total_postings || 0).toLocaleString()],
+    ['TCV IDs',   (stats.unique_tcv || 0).toLocaleString()],
+    ['Row IDs',   (stats.unique_tr  || 0).toLocaleString()],
+  ];
+  items.forEach(([k, v]) => {
+    el.innerHTML += `<div class="stat-item">${k}: <strong>${v}</strong></div>`;
+  });
+  document.getElementById('db-info').classList.add('show');
+}
+
+// ── Schema ──────────────────────────────────────────────────────────────────
+async function loadSchema() {
+  const r = await fetch(`${API}/schema`);
+  schema = await r.json();
+}
+
+// ── Filter Builder ───────────────────────────────────────────────────────────
+function addFilter() {
+  filterCount++;
+  const idx = filterCount;
+  const tables = Object.keys(schema);
+
+  const card = document.createElement('div');
+  card.className = 'filter-card';
+  card.id = `filter-${idx}`;
+  card.innerHTML = `
+    <div class="filter-card-header">
+      <span class="filter-label">Filter #${idx}</span>
+      <button class="filter-remove" onclick="removeFilter(${idx})" title="Remove">✕</button>
+    </div>
+    <div class="filter-body">
+      <select id="table-${idx}" onchange="onTableChange(${idx})">
+        <option value="">— select table —</option>
+        ${tables.map(t => `<option value="${t}">${t}</option>`).join('')}
+      </select>
+      <select id="col-${idx}" disabled onchange="onColChange(${idx})">
+        <option value="">— select column —</option>
+      </select>
+      <select id="val-${idx}" disabled onchange="onValChange(${idx})">
+        <option value="">— select value —</option>
+      </select>
+      <div class="tcv-badge" id="badge-${idx}"></div>
+    </div>
+  `;
+
+  document.getElementById('filters-container').appendChild(card);
+  document.getElementById('clear-btn').style.display = 'inline-flex';
+  updateSearchBtn();
+}
+
+function removeFilter(idx) {
+  document.getElementById(`filter-${idx}`)?.remove();
+  updateSearchBtn();
+  if (document.getElementById('filters-container').children.length === 0) {
+    document.getElementById('clear-btn').style.display = 'none';
+  }
+}
+
+function clearFilters() {
+  document.getElementById('filters-container').innerHTML = '';
+  document.getElementById('clear-btn').style.display = 'none';
+  filterCount = 0;
+  updateSearchBtn();
+}
+
+async function onTableChange(idx) {
+  const table = document.getElementById(`table-${idx}`).value;
+  const colSel = document.getElementById(`col-${idx}`);
+  const valSel = document.getElementById(`val-${idx}`);
+  const badge  = document.getElementById(`badge-${idx}`);
+
+  badge.className = 'tcv-badge';
+  valSel.innerHTML = '<option value="">— select value —</option>';
+  valSel.disabled = true;
+
+  if (!table) { colSel.innerHTML = '<option value="">— select column —</option>'; colSel.disabled = true; return; }
+
+  const cols = schema[table] || [];
+  colSel.innerHTML = '<option value="">— select column —</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+  colSel.disabled = false;
+}
+
+async function onColChange(idx) {
+  const table  = document.getElementById(`table-${idx}`).value;
+  const col    = document.getElementById(`col-${idx}`).value;
+  const valSel = document.getElementById(`val-${idx}`);
+  const badge  = document.getElementById(`badge-${idx}`);
+
+  badge.className = 'tcv-badge';
+
+  if (!col) { valSel.innerHTML = '<option value="">— select value —</option>'; valSel.disabled = true; return; }
+
+  valSel.innerHTML = '<option value="">loading…</option>';
+  valSel.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/values?table=${encodeURIComponent(table)}&column=${encodeURIComponent(col)}`);
+    const d = await r.json();
+    valSel.innerHTML = '<option value="">— select value —</option>' + d.values.map(v => `<option value="${v}">${v}</option>`).join('');
+    valSel.disabled = false;
+  } catch {
+    valSel.innerHTML = '<option value="">Error loading values</option>';
+  }
+}
+
+async function onValChange(idx) {
+  const table = document.getElementById(`table-${idx}`).value;
+  const col   = document.getElementById(`col-${idx}`).value;
+  const val   = document.getElementById(`val-${idx}`).value;
+  const badge = document.getElementById(`badge-${idx}`);
+
+  if (!val) { badge.className = 'tcv-badge'; updateSearchBtn(); return; }
+
+  try {
+    const r = await fetch(`${API}/resolve-tcv`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ filters: [{ table, column: col, value: val }] })
+    });
+    const d = await r.json();
+    const res = d.resolved[0];
+    if (res.found) {
+      badge.className = 'tcv-badge found';
+      badge.textContent = `id: ${res.tcv_id}`;
+    } else {
+      badge.className = 'tcv-badge missing';
+      badge.textContent = 'Not in index';
+    }
+  } catch {}
+
+  updateSearchBtn();
+}
+
+function updateSearchBtn() {
+  const cards = document.getElementById('filters-container').children;
+  let ready = cards.length > 0;
+  for (const c of cards) {
+    const idx = c.id.split('-')[1];
+    const val = document.getElementById(`val-${idx}`)?.value;
+    if (!val) { ready = false; break; }
+  }
+  document.getElementById('search-btn').disabled = !ready;
+}
+
+// ── Search ──────────────────────────────────────────────────────────────────
+async function runSearch() {
+  const cards = Array.from(document.getElementById('filters-container').children);
+  const filters = cards.map(c => {
+    const idx = c.id.split('-')[1];
+    return {
+      table:  document.getElementById(`table-${idx}`).value,
+      column: document.getElementById(`col-${idx}`).value,
+      value:  document.getElementById(`val-${idx}`).value,
+    };
+  }).filter(f => f.table && f.column && f.value);
+
+  if (!filters.length) return;
+
+  const btn = document.getElementById('search-btn');
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch(`${API}/search`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ filters })
+    });
+    const d = await r.json();
+    renderResults(d, filters);
+  } catch (e) {
+    renderError(e.message);
+  } finally {
+    btn.innerHTML = '<span>Search</span>';
+    btn.disabled = false;
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function showEmpty() {
+  document.getElementById('empty-state').style.display = 'flex';
+  document.getElementById('results-content').style.display = 'none';
+}
+
+function renderError(msg) {
+  document.getElementById('empty-state').style.display = 'none';
+  const rc = document.getElementById('results-content');
+  rc.style.display = 'block';
+  rc.innerHTML = `<div class="alert alert-error">⚠ ${msg}</div>`;
+}
+
+function renderResults(data, filters) {
+  document.getElementById('empty-state').style.display = 'none';
+  const rc = document.getElementById('results-content');
+  rc.style.display = 'block';
+
+  let html = '';
+
+  // Applied filters + resolved IDs
+  const filterTags = filters.map(f => `<span class="filter-tag">(${f.table}, ${f.column}, "${f.value}")</span>`).join('');
+  html += `<div class="result-meta">
+    <div class="applied-filters">${filterTags}</div>
+  </div>`;
+
+  if (data.word_ids && data.word_ids.length) {
+    html += `<div style="margin:0 0 16px;font-size:11px;color:var(--text-dim)">
+      Resolved IDs: ${data.word_ids.map(id => `<code style="color:var(--accent)">${id}</code>`).join(' ∩ ')}
+    </div>`;
+  }
+
+  // Raw binary output
+  const { word_ids, words, ...binaryOutput } = data;
+  html += `<div class="section-header" style="margin-bottom:12px"><div class="dot"></div>Binary Output</div>`;
+  html += `<pre style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:16px;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre-wrap;word-break:break-all">${escHtml(JSON.stringify(binaryOutput, null, 2))}</pre>`;
+
+  rc.innerHTML = html;
+}
+
+function toggleCard(i) {
+  document.getElementById(`rcard-${i}`)?.classList.toggle('open');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+checkStatus().then(() => {
+  if (document.getElementById('status-dot').className === 'online') {
+    loadSchema().then(() => {
+      document.getElementById('add-filter-btn').disabled = false;
+      document.getElementById('download-strip').classList.add('show');
+    });
+  }
+});
+</script>
+</body>
+</html>

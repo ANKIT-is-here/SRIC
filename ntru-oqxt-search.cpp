@@ -1982,7 +1982,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
 
 }   
 
-int main()
+int main(int argc, char * argv[])
 {
     cout << "Starting program..." << endl;
 
@@ -2023,15 +2023,17 @@ int main()
     unsigned int nm = 0;
     unsigned char row_vec[2048]; //16 bytes * Number of keywords in the query
     int n_vec = 0;
- 
+	
+	cout<<argc<<endl;
     for(unsigned int q_idx=0;q_idx<n_iterations;++q_idx)
     {
         query.clear();  
 
-		
-		query.push_back("00000002");
-		query.push_back("00000003");
-
+		for(int t_cnt = 1;t_cnt<argc;t_cnt++){
+			query.push_back(argv[t_cnt]);
+			// query.push_back(argv[2]);
+		}
+		// cout<<argv[1]<<" "<<argv[2]<<endl;
 
         std::cout << "--------------------------------------------------" << std::endl;
         std::cout << "Searching for  ";
@@ -2049,12 +2051,13 @@ int main()
             n_vec++;
         } 
         
+		// cout<<"hello"<<endl;
         ::memset(UIDX,0x00,16*N_max_ids);
         
         search_start_time = std::chrono::high_resolution_clock::now();
-
+		cout<<row_vec<<" "<<n_vec<<endl;
         nm = EDB_Search(row_vec,(n_vec-1));
-
+		// cout<<"hello2"<<endl;
         search_stop_time = std::chrono::high_resolution_clock::now();
         search_time_elapsed = std::chrono::duration_cast<std::chrono::microseconds>(search_stop_time - search_start_time).count();
 
