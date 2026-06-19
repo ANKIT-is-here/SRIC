@@ -6,7 +6,7 @@ CFLAGS = -I. -I./blake3/ -w -O3 -std=c++17 -msse2 -msse -mssse3 -march=native -f
 
 # Linker flags
 LDFLAGS = -lcryptopp -lpthread -lgmpxx -lssl -lhiredis -lredis++ -lcrypto -lntl -lgmp -lm -lrt \
-  -Wl,./blake3/libblake3.so,-rpath,/sealusers/user3/redis-plus-plus/build
+  -Wl,./blake3/libblake3.so
 
 # Targets
 ntru-oqxt-setup: rawdatautil.cpp bloom_filter.cpp AES_256GCM.c \

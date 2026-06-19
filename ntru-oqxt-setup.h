@@ -52,8 +52,8 @@
 #include "bloom_filter.h"
 #include "utils.h"
 #include "AES_256GCM.h"
-#include "../../NTRU-OQXT/falcon-round3/Extra/c/falcon.h"
-#include "../../NTRU-OQXT/falcon-round3/Extra/c/inner.h"
+#include "falcon-round3/Extra/c/falcon.h"
+#include "falcon-round3/Extra/c/inner.h"
 
 using namespace std;
 using namespace std::chrono;
