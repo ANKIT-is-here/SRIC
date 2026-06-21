@@ -1,0 +1,55 @@
+FROM ubuntu:22.04
+
+# Avoid tzdata interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies for C++ binaries and Python
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    g++ \
+    make \
+    libssl-dev \
+    libcrypto++-dev \
+    libgmp-dev \
+    libntl-dev \
+    libhiredis-dev \
+    python3 \
+    python3-pip \
+    python3-venv \
+    redis-tools \
+    git \
+    cmake \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy redis-plus-plus source from host (fixes DNS issues resolving github.com inside Docker)
+COPY redis-plus-plus /tmp/redis-plus-plus
+
+# Build redis-plus-plus from local source
+RUN cd /tmp/redis-plus-plus \
+    && mkdir build \
+    && cd build \
+    && cmake -DREDIS_PLUS_PLUS_CXX_STANDARD=17 .. \
+    && make \
+    && make install \
+    && ldconfig \
+    && rm -rf /tmp/redis-plus-plus
+
+# Set working directory
+WORKDIR /app
+
+# Copy all files into the container
+COPY . /app
+
+# Compile the C++ binaries
+RUN make ntru-oqxt-setup && make ntru-oqxt-search
+
+# Create a virtual environment and install python dependencies
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose port 8000 for the FastAPI server
+EXPOSE 8000
+
+# By default, run the document search backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

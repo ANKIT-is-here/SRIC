@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+.git/
+.gitignore
+frontend/
+data/
+rdbms_test/
+uploads/
+db6k.dat
+ntru-oqxt-setup
+ntru-oqxt-search
+*.o
+*.gch
