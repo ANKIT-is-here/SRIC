@@ -25,3 +25,14 @@ uploads/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*

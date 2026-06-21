@@ -1,78 +1,17 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Cpu, Zap, Award, Globe, ArrowRight, Server, Eye, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shield, Lock, Cpu, Server, Eye, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function Hero({ onNavigate }) {
-  const [activeStory, setActiveStory] = useState('encrypted'); // 'traditional' or 'encrypted'
-
-  // Why It Matters Cards Data
-  const cards = [
-    {
-      icon: <Shield className="card-icon cyan" />,
-      title: "End-to-End Privacy",
-      description: "Data remains encrypted in transit, at rest, and even during computation. Plaintext never touches the host.",
-      tag: "AES-GCM & NTRU"
-    },
-    {
-      icon: <Lock className="card-icon purple" />,
-      title: "Zero Knowledge Search",
-      description: "Host servers execute complex search logic over ciphertexts without learning a single keyword or search result.",
-      tag: "OQXT Protocol"
-    },
-    {
-      icon: <Cpu className="card-icon cyan" />,
-      title: "Cloud Scale Performance",
-      description: "Proprietary cryptographic indexes search millions of records in sub-millisecond timelines, matching traditional database speeds.",
-      tag: "Bloom Filters"
-    },
-    {
-      icon: <Zap className="card-icon purple" />,
-      title: "Fast Retrieval",
-      description: "Leverages parallelized symmetric primitives to process encrypted indices quickly without decryption overhead.",
-      tag: "Sub-millisecond"
-    },
-    {
-      icon: <Award className="card-icon cyan" />,
-      title: "Military Grade Security",
-      description: "Standard cryptographic security guarantees including security against active adversaries and adaptive search leakage.",
-      tag: "Quantum Resistant"
-    },
-    {
-      icon: <Globe className="card-icon purple" />,
-      title: "Compliance Redefined",
-      description: "Satisfies stringent GDPR, HIPAA, and SOC 2 requirements by design, rendering cloud data breaches cryptographically harmless.",
-      tag: "Compliance Ready"
-    }
-  ];
-
-  // Mouse Tilt Effect
-  const handleMouseMove = (e, idx) => {
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    
-    // Tilt angle
-    const rotateX = -(y / (rect.height / 2)) * 8; 
-    const rotateY = (x / (rect.width / 2)) * 8; 
-    
-    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
-    card.style.boxShadow = `${x * -0.1}px ${y * -0.1}px 30px rgba(123, 97, 255, 0.25)`;
-  };
-
-  const handleMouseLeave = (e) => {
-    const card = e.currentTarget;
-    card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
-    card.style.boxShadow = '0 8px 32px 0 rgba(0, 0, 0, 0.37)';
-  };
+  const [activeStory, setActiveStory] = useState('encrypted');
 
   return (
     <section id="home" className="section-padding">
       <div className="container">
-        
+
         {/* HERO TITLE */}
         <div className="hero-text-wrapper">
           <div className="badge badge-cyan" style={{ marginBottom: 20 }}>
-            🚀 State-of-the-Art Privacy Tech
+            State-of-the-Art Privacy Tech
           </div>
           <h1 className="hero-title">
             Search Encrypted Data <br />
@@ -81,14 +20,6 @@ export default function Hero({ onNavigate }) {
           <p className="hero-subtitle">
             Privacy-preserving search powered by Searchable Symmetric Encryption (SSE) and Fully Homomorphic Encryption (FHE). Zero exposure guarantees for your enterprise data.
           </p>
-          <div className="hero-buttons">
-            <button className="btn btn-cyan" onClick={() => onNavigate('demo')}>
-              Try Live Demo <ArrowRight style={{ marginLeft: 8, width: 18, height: 18 }} />
-            </button>
-            <button className="btn btn-secondary" onClick={() => onNavigate('platform')}>
-              View Architecture
-            </button>
-          </div>
         </div>
 
         {/* SCROLL STORY SECTION */}
@@ -96,15 +27,15 @@ export default function Hero({ onNavigate }) {
           <div className="story-header text-center">
             <h2 className="section-subtitle">How Search Engine Architectures Compare</h2>
             <p className="subtitle">Select a search model to trace the flow of query and data visualization.</p>
-            
+
             <div className="story-toggle">
-              <button 
+              <button
                 className={`story-toggle-btn ${activeStory === 'traditional' ? 'active traditional' : ''}`}
                 onClick={() => setActiveStory('traditional')}
               >
                 Traditional Search
               </button>
-              <button 
+              <button
                 className={`story-toggle-btn ${activeStory === 'encrypted' ? 'active encrypted' : ''}`}
                 onClick={() => setActiveStory('encrypted')}
               >
@@ -116,18 +47,16 @@ export default function Hero({ onNavigate }) {
           <div className="story-flow-wrapper glass-panel">
             {activeStory === 'traditional' ? (
               <div className="flow-visual traditional-flow fade-in">
-                {/* Step 1 */}
                 <div className="flow-node">
                   <div className="flow-icon-circle"><FileText className="cyan" /></div>
                   <div className="flow-node-title">1. Search Query</div>
                   <p className="flow-node-desc">User enters a plaintext search term (e.g., "patient data").</p>
                 </div>
-                
+
                 <div className="flow-connector danger-line">
                   <div className="flow-dot danger-dot"></div>
                 </div>
 
-                {/* Step 2 */}
                 <div className="flow-node warning-highlight">
                   <div className="flow-icon-circle danger-border"><Server className="red" /></div>
                   <div className="flow-node-title text-red">2. Server Transmission</div>
@@ -138,7 +67,6 @@ export default function Hero({ onNavigate }) {
                   <div className="flow-dot danger-dot"></div>
                 </div>
 
-                {/* Step 3 */}
                 <div className="flow-node warning-highlight">
                   <div className="flow-icon-circle danger-border"><Eye className="red" /></div>
                   <div className="flow-node-title text-red">3. Data Exposure</div>
@@ -148,7 +76,6 @@ export default function Hero({ onNavigate }) {
               </div>
             ) : (
               <div className="flow-visual encrypted-flow fade-in">
-                {/* Step 1 */}
                 <div className="flow-node">
                   <div className="flow-icon-circle secure-border"><Lock className="purple" /></div>
                   <div className="flow-node-title text-purple">1. Local Encryption</div>
@@ -159,7 +86,6 @@ export default function Hero({ onNavigate }) {
                   <div className="flow-dot secure-dot"></div>
                 </div>
 
-                {/* Step 2 */}
                 <div className="flow-node">
                   <div className="flow-icon-circle secure-border"><Cpu className="cyan" /></div>
                   <div className="flow-node-title text-cyan">2. Ciphertext Search</div>
@@ -170,7 +96,6 @@ export default function Hero({ onNavigate }) {
                   <div className="flow-dot secure-dot"></div>
                 </div>
 
-                {/* Step 3 */}
                 <div className="flow-node">
                   <div className="flow-icon-circle secure-border"><CheckCircle className="green" /></div>
                   <div className="flow-node-title text-green">3. Local Decryption</div>
@@ -182,35 +107,8 @@ export default function Hero({ onNavigate }) {
           </div>
         </div>
 
-        {/* WHY IT MATTERS SECTION */}
-        <div className="why-it-matters-section">
-          <div className="text-center" style={{ marginBottom: 60 }}>
-            <h2 className="section-title">Designed for Cryptographic Security</h2>
-            <p className="subtitle">High-performance search primitives without sacrificing privacy or performance.</p>
-          </div>
-          
-          <div className="cards-grid">
-            {cards.map((c, i) => (
-              <div 
-                key={i} 
-                className="card glass-panel"
-                onMouseMove={(e) => handleMouseMove(e, i)}
-                onMouseLeave={handleMouseLeave}
-              >
-                <div className="card-top">
-                  {c.icon}
-                  <span className="card-tag">{c.tag}</span>
-                </div>
-                <h3 className="card-title">{c.title}</h3>
-                <p className="card-desc">{c.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
       </div>
 
-      {/* Styled JSX specifically for Hero & Scroll Story layout */}
       <style>{`
         .hero-text-wrapper {
           text-align: center;
@@ -230,20 +128,13 @@ export default function Hero({ onNavigate }) {
         .hero-subtitle {
           font-size: 1.25rem;
           color: var(--text-secondary);
-          margin-bottom: 40px;
           line-height: 1.6;
-        }
-
-        .hero-buttons {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
         }
 
         /* Scroll Story */
         .story-container {
           margin-top: 100px;
-          margin-bottom: 120px;
+          margin-bottom: 60px;
         }
 
         .section-title {
@@ -450,75 +341,6 @@ export default function Hero({ onNavigate }) {
         .text-green { color: #10b981; }
         .red { color: #f43f5e; }
         .green { color: #10b981; }
-
-        /* Why it Matters Grid */
-        .why-it-matters-section {
-          margin-top: 100px;
-        }
-
-        .cards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-          gap: 24px;
-        }
-
-        @media (max-width: 480px) {
-          .cards-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        .card {
-          transform-style: preserve-3d;
-          transition: transform 0.1s ease, box-shadow 0.3s ease;
-        }
-
-        .card-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-
-        .card-icon {
-          width: 40px;
-          height: 40px;
-          padding: 8px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid var(--border-glass);
-        }
-
-        .card-icon.cyan {
-          color: var(--accent-cyan);
-          border-color: rgba(0, 212, 255, 0.15);
-        }
-
-        .card-icon.purple {
-          color: var(--accent-purple);
-          border-color: rgba(123, 97, 255, 0.15);
-        }
-
-        .card-tag {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          color: var(--text-muted);
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-        }
-
-        .card-title {
-          font-size: 1.25rem;
-          font-weight: 700;
-          margin-bottom: 12px;
-          letter-spacing: -0.01em;
-        }
-
-        .card-desc {
-          color: var(--text-secondary);
-          font-size: 0.95rem;
-          line-height: 1.6;
-        }
 
         .fade-in {
           animation: fade-in-keyframes 0.5s ease-out forwards;
