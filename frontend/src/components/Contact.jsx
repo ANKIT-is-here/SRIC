@@ -1,83 +1,49 @@
-import React from 'react';
-import { Mail } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 export default function Contact() {
+  const ref = useRef();
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.2 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+
   const people = [
-    {
-      name: "Debadrita Talapatra",
-      role: "Main Developer",
-      email: "debadritatalapatra@gmail.com"
-    },
-    {
-      name: "Prof. Debdeep Mukhopadhyay",
-      role: "Faculty Advisor, CSE",
-      email: "debdeep@cse.iitkgp.ac.in"
-    }
+    { name: 'Debadrita Talapatra', role: 'Main Developer', email: 'debadritatalapatra@gmail.com' },
+    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Advisor, CSE Dept.', email: 'debdeep@cse.iitkgp.ac.in' },
   ];
 
   return (
-    <section id="contact" className="section-padding" style={{ background: 'linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-deep) 100%)' }}>
+    <div className="section" style={{ borderTop: '1px solid #1a1a1a' }}>
       <div className="container">
+        <div ref={ref} className="fade-up">
+          <div className="label" style={{ marginBottom: 16 }}>Contact</div>
+          <h2 className="heading-lg" style={{ marginBottom: 48 }}>Get in touch</h2>
 
-        <div className="text-center" style={{ marginBottom: 50 }}>
-          <div className="badge badge-cyan" style={{ marginBottom: 16 }}>Get in Touch</div>
-          <h2 className="section-title">Contact</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, maxWidth: 640 }}>
+            {people.map((p, i) => (
+              <div key={i} className="card">
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#f5f5f0', marginBottom: 4 }}>{p.name}</div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 16, fontFamily: 'Space Mono, monospace' }}>{p.role}</div>
+                <a
+                  href={`mailto:${p.email}`}
+                  style={{
+                    fontSize: 13,
+                    color: '#ffd208',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontFamily: 'Space Mono, monospace',
+                  }}
+                >
+                  {p.email}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="contact-grid">
-          {people.map((p, i) => (
-            <div key={i} className="contact-card glass-panel">
-              <h4 className="contact-name">{p.name}</h4>
-              <p className="contact-role">{p.role}</p>
-              <a href={`mailto:${p.email}`} className="contact-email">
-                <Mail size={14} />
-                <span>{p.email}</span>
-              </a>
-            </div>
-          ))}
-        </div>
-
       </div>
-
-      <style>{`
-        .contact-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 24px;
-          max-width: 700px;
-          margin: 0 auto;
-        }
-
-        .contact-card {
-          padding: 28px;
-          text-align: center;
-        }
-
-        .contact-name {
-          font-size: 1.1rem;
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-
-        .contact-role {
-          font-size: 0.85rem;
-          color: var(--text-muted);
-          margin-bottom: 16px;
-        }
-
-        .contact-email {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.85rem;
-          color: var(--accent-cyan);
-          text-decoration: none;
-        }
-
-        .contact-email:hover {
-          text-decoration: underline;
-        }
-      `}</style>
-    </section>
+    </div>
   );
 }

@@ -1,47 +1,47 @@
-import React from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function About() {
+  const ref = useRef();
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.2 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <section id="about" className="section-padding" style={{ background: 'linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-deep) 100%)' }}>
+    <div className="section" style={{ borderTop: '1px solid #1a1a1a' }}>
       <div className="container">
+        <div ref={ref} className="fade-up">
+          <div className="label" style={{ marginBottom: 16 }}>Future plans</div>
+          <h2 className="heading-lg" style={{ marginBottom: 48, maxWidth: 480 }}>
+            Where this is headed
+          </h2>
 
-        <div className="text-center" style={{ marginBottom: 40 }}>
-          <div className="badge badge-cyan" style={{ marginBottom: 16 }}>Future Plans</div>
-          <h2 className="section-title">What's Next for SSE</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 1, border: '1px solid #1a1a1a', borderRadius: 8, overflow: 'hidden' }}>
+            {[
+              {
+                title: 'Range and fuzzy queries',
+                body: 'Extending support beyond exact keyword matches. Partial words and approximate terms should resolve without leaking structural information to the server.',
+              },
+              {
+                title: 'Dynamic index updates',
+                body: 'Adding or removing documents from the encrypted index without a full rebuild. Currently the index is static after setup.',
+              },
+              {
+                title: 'Numeric FHE queries',
+                body: 'Running aggregate operations like sum, average, and filter directly on encrypted numeric fields using Fully Homomorphic Encryption.',
+              },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: '32px 28px', background: '#0d0d0d', borderRight: i < 2 ? '1px solid #1a1a1a' : 'none' }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#f5f5f0', marginBottom: 12, letterSpacing: '-0.01em' }}>
+                  {item.title}
+                </h3>
+                <p className="body-sm">{item.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="future-plans-panel glass-panel">
-          <p className="future-plans-text">
-            The current implementation handles single and conjunctive keyword search over an encrypted index built with Bloom filters and trapdoor tokens. The next phase focuses on extending this to support range queries and fuzzy matching, so partial or approximate keywords can still resolve correctly without leaking structure to the server.
-          </p>
-          <p className="future-plans-text">
-            We are also exploring update support, allowing documents to be added or removed from the encrypted index without rebuilding it from scratch, and evaluating Fully Homomorphic Encryption for numeric fields so aggregate queries can run directly on ciphertext.
-          </p>
-          <p className="future-plans-text">
-            Performance work is ongoing in parallel: reducing index size, tightening search latency at scale, and benchmarking against larger document collections to validate the design under realistic load.
-          </p>
-        </div>
-
       </div>
-
-      <style>{`
-        .future-plans-panel {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 40px;
-        }
-
-        .future-plans-text {
-          color: var(--text-secondary);
-          line-height: 1.7;
-          font-size: 0.98rem;
-          margin-bottom: 20px;
-        }
-
-        .future-plans-text:last-child {
-          margin-bottom: 0;
-        }
-      `}</style>
-    </section>
+    </div>
   );
 }

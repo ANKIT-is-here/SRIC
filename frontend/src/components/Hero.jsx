@@ -1,356 +1,72 @@
-import React, { useState } from 'react';
-import { Shield, Lock, Cpu, Server, Eye, FileText, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
-export default function Hero({ onNavigate }) {
-  const [activeStory, setActiveStory] = useState('encrypted');
+export default function Hero({ onDemo }) {
+  const ref = useRef();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    setTimeout(() => el.classList.add('visible'), 100);
+  }, []);
 
   return (
-    <section id="home" className="section-padding">
+    <div className="section" style={{ minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center' }}>
       <div className="container">
-
-        {/* HERO TITLE */}
-        <div className="hero-text-wrapper">
-          <div className="badge badge-cyan" style={{ marginBottom: 20 }}>
-            State-of-the-Art Privacy Tech
-          </div>
-          <h1 className="hero-title">
-            Search Encrypted Data <br />
-            <span className="gradient-text">Without Revealing It</span>
+        <div ref={ref} className="fade-up" style={{ maxWidth: 760 }}>
+          <div className="label" style={{ marginBottom: 24 }}>SEC / SEAL Lab, IIT Kharagpur</div>
+          <h1 className="heading-xl" style={{ marginBottom: 24 }}>
+            Search encrypted data.<br />
+            <span className="yellow">Reveal nothing.</span>
           </h1>
-          <p className="hero-subtitle">
-            Privacy-preserving search powered by Searchable Symmetric Encryption (SSE) and Fully Homomorphic Encryption (FHE). Zero exposure guarantees for your enterprise data.
+          <p className="body-lg" style={{ maxWidth: 560, marginBottom: 40 }}>
+            Documents live on the server fully encrypted. Search happens without the server ever seeing your query or your files.
           </p>
-        </div>
-
-        {/* SCROLL STORY SECTION */}
-        <div className="story-container">
-          <div className="story-header text-center">
-            <h2 className="section-subtitle">How Search Engine Architectures Compare</h2>
-            <p className="subtitle">Select a search model to trace the flow of query and data visualization.</p>
-
-            <div className="story-toggle">
-              <button
-                className={`story-toggle-btn ${activeStory === 'traditional' ? 'active traditional' : ''}`}
-                onClick={() => setActiveStory('traditional')}
-              >
-                Traditional Search
-              </button>
-              <button
-                className={`story-toggle-btn ${activeStory === 'encrypted' ? 'active encrypted' : ''}`}
-                onClick={() => setActiveStory('encrypted')}
-              >
-                Encrypted Search (Our Platform)
-              </button>
-            </div>
-          </div>
-
-          <div className="story-flow-wrapper glass-panel">
-            {activeStory === 'traditional' ? (
-              <div className="flow-visual traditional-flow fade-in">
-                <div className="flow-node">
-                  <div className="flow-icon-circle"><FileText className="cyan" /></div>
-                  <div className="flow-node-title">1. Search Query</div>
-                  <p className="flow-node-desc">User enters a plaintext search term (e.g., "patient data").</p>
-                </div>
-
-                <div className="flow-connector danger-line">
-                  <div className="flow-dot danger-dot"></div>
-                </div>
-
-                <div className="flow-node warning-highlight">
-                  <div className="flow-icon-circle danger-border"><Server className="red" /></div>
-                  <div className="flow-node-title text-red">2. Server Transmission</div>
-                  <p className="flow-node-desc">Query and files are sent to cloud database in readable format.</p>
-                </div>
-
-                <div className="flow-connector danger-line">
-                  <div className="flow-dot danger-dot"></div>
-                </div>
-
-                <div className="flow-node warning-highlight">
-                  <div className="flow-icon-circle danger-border"><Eye className="red" /></div>
-                  <div className="flow-node-title text-red">3. Data Exposure</div>
-                  <p className="flow-node-desc">Server indexes data. Administrators, hackers, or cloud providers see everything.</p>
-                  <div className="warning-badge"><AlertTriangle size={12} /> Privacy Risk</div>
-                </div>
-              </div>
-            ) : (
-              <div className="flow-visual encrypted-flow fade-in">
-                <div className="flow-node">
-                  <div className="flow-icon-circle secure-border"><Lock className="purple" /></div>
-                  <div className="flow-node-title text-purple">1. Local Encryption</div>
-                  <p className="flow-node-desc">Query is converted into a secure token locally on client device.</p>
-                </div>
-
-                <div className="flow-connector secure-line">
-                  <div className="flow-dot secure-dot"></div>
-                </div>
-
-                <div className="flow-node">
-                  <div className="flow-icon-circle secure-border"><Cpu className="cyan" /></div>
-                  <div className="flow-node-title text-cyan">2. Ciphertext Search</div>
-                  <p className="flow-node-desc">Symmetric / Homomorphic search executes entirely over encrypted files.</p>
-                </div>
-
-                <div className="flow-connector secure-line">
-                  <div className="flow-dot secure-dot"></div>
-                </div>
-
-                <div className="flow-node">
-                  <div className="flow-icon-circle secure-border"><CheckCircle className="green" /></div>
-                  <div className="flow-node-title text-green">3. Local Decryption</div>
-                  <p className="flow-node-desc">Only matching encrypted results are returned and decrypted on user device.</p>
-                  <div className="secure-badge"><Shield size={12} /> 100% Secure</div>
-                </div>
-              </div>
-            )}
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={onDemo}>Try the demo</button>
+            <a href="#how" className="btn btn-ghost" onClick={e => { e.preventDefault(); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
+              See how it works
+            </a>
           </div>
         </div>
+
 
       </div>
+    </div>
+  );
+}
 
-      <style>{`
-        .hero-text-wrapper {
-          text-align: center;
-          max-width: 900px;
-          margin: 40px auto 80px;
-          animation: slide-up 1s ease;
-        }
+function TerminalPreview() {
+  const ref = useRef();
+  useEffect(() => {
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.2 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
 
-        .hero-title {
-          font-size: clamp(2.5rem, 6vw, 4.5rem);
-          font-weight: 800;
-          line-height: 1.1;
-          letter-spacing: -0.03em;
-          margin-bottom: 24px;
-        }
-
-        .hero-subtitle {
-          font-size: 1.25rem;
-          color: var(--text-secondary);
-          line-height: 1.6;
-        }
-
-        /* Scroll Story */
-        .story-container {
-          margin-top: 100px;
-          margin-bottom: 60px;
-        }
-
-        .section-title {
-          font-size: clamp(2rem, 4vw, 3rem);
-          font-weight: 800;
-          letter-spacing: -0.02em;
-        }
-
-        .section-subtitle {
-          font-size: 1.75rem;
-          font-weight: 700;
-          letter-spacing: -0.01em;
-          margin-bottom: 10px;
-        }
-
-        .story-toggle {
-          display: inline-flex;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid var(--border-glass);
-          padding: 4px;
-          border-radius: 9999px;
-          margin: 30px 0;
-        }
-
-        .story-toggle-btn {
-          padding: 10px 24px;
-          border-radius: 9999px;
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          font-weight: 500;
-          cursor: pointer;
-          transition: var(--transition-smooth);
-          font-size: 0.9rem;
-        }
-
-        .story-toggle-btn.active.traditional {
-          background: rgba(244, 63, 94, 0.15);
-          color: #f43f5e;
-          border: 1px solid rgba(244, 63, 94, 0.3);
-        }
-
-        .story-toggle-btn.active.encrypted {
-          background: rgba(123, 97, 255, 0.15);
-          color: #a78bfa;
-          border: 1px solid rgba(123, 97, 255, 0.3);
-        }
-
-        .story-flow-wrapper {
-          padding: 50px 30px;
-          min-height: 320px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .flow-visual {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-around;
-          width: 100%;
-          gap: 20px;
-        }
-
-        @media (max-width: 768px) {
-          .flow-visual {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            gap: 40px;
-          }
-          .flow-connector {
-            width: 2px !important;
-            height: 40px !important;
-          }
-          .flow-dot {
-            animation: flow-v 2s linear infinite !important;
-          }
-        }
-
-        .flow-node {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          max-width: 250px;
-        }
-
-        .flow-icon-circle {
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid var(--border-glass);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 16px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-          transition: var(--transition-smooth);
-        }
-
-        .flow-icon-circle.danger-border {
-          border-color: rgba(244, 63, 94, 0.3);
-          background: rgba(244, 63, 94, 0.05);
-        }
-
-        .flow-icon-circle.secure-border {
-          border-color: rgba(123, 97, 255, 0.3);
-          background: rgba(123, 97, 255, 0.05);
-        }
-
-        .flow-node-title {
-          font-family: var(--font-sans);
-          font-weight: 700;
-          font-size: 1.1rem;
-          margin-bottom: 8px;
-        }
-
-        .flow-node-desc {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-          line-height: 1.5;
-        }
-
-        .warning-badge, .secure-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          margin-top: 12px;
-          padding: 4px 12px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-        }
-
-        .warning-badge {
-          background: rgba(244, 63, 94, 0.1);
-          color: #f43f5e;
-          border: 1px solid rgba(244, 63, 94, 0.2);
-        }
-
-        .secure-badge {
-          background: rgba(16, 185, 129, 0.1);
-          color: #10b981;
-          border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-
-        .flow-connector {
-          align-self: center;
-          flex-grow: 1;
-          height: 2px;
-          position: relative;
-          background: rgba(255,255,255,0.05);
-          max-width: 120px;
-        }
-
-        .danger-line {
-          background: linear-gradient(90deg, rgba(255,255,255,0.05), rgba(244,63,94,0.3));
-        }
-
-        .secure-line {
-          background: linear-gradient(90deg, rgba(123,97,255,0.2), rgba(0,212,255,0.2));
-        }
-
-        .flow-dot {
-          position: absolute;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          top: -3px;
-          left: 0;
-          animation: flow-h 2s linear infinite;
-        }
-
-        .danger-dot {
-          background: #f43f5e;
-          box-shadow: 0 0 10px #f43f5e;
-        }
-
-        .secure-dot {
-          background: var(--accent-cyan);
-          box-shadow: 0 0 10px var(--accent-cyan);
-        }
-
-        @keyframes flow-h {
-          0% { left: 0%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { left: 100%; opacity: 0; }
-        }
-
-        @keyframes flow-v {
-          0% { top: 0%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-
-        .text-red { color: #f43f5e; }
-        .text-purple { color: #a78bfa; }
-        .text-green { color: #10b981; }
-        .red { color: #f43f5e; }
-        .green { color: #10b981; }
-
-        .fade-in {
-          animation: fade-in-keyframes 0.5s ease-out forwards;
-        }
-
-        @keyframes fade-in-keyframes {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </section>
+  return (
+    <div ref={ref} className="fade-up" style={{
+      background: '#0d0d0d',
+      border: '1px solid #1a1a1a',
+      borderRadius: 8,
+      padding: '20px 24px',
+      maxWidth: 640,
+      fontFamily: 'Space Mono, monospace',
+    }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {['#ff5f56','#ffbd2e','#27c93f'].map((c, i) => (
+          <div key={i} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
+        ))}
+      </div>
+      {[
+        { label: '// client generates search token', color: '#555' },
+        { label: 'XToken = PRF(SecretKey, "patient")', color: '#ffd208' },
+        { label: '// token sent to server', color: '#555' },
+        { label: 'EDB_Search(0x4A7F3C...) → EncRecord[]', color: '#aaaaaa' },
+        { label: '// server never sees the word "patient"', color: '#555' },
+        { label: 'decrypt(EncRecord, SecretKey) → doc_42.pdf', color: '#f5f5f0' },
+      ].map((line, i) => (
+        <div key={i} style={{ fontSize: 12, lineHeight: 2, color: line.color }}>{line.label}</div>
+      ))}
+    </div>
   );
 }
