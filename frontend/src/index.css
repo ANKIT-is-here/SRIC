@@ -128,7 +128,8 @@ body {
 
 .btn-primary:hover {
   background: #ffe040;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--yellow-mid);
 }
 
 .btn-ghost {
@@ -140,7 +141,10 @@ body {
 .btn-ghost:hover {
   border-color: var(--yellow);
   color: var(--yellow);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 210, 8, 0.1);
 }
+
 
 /* Cards */
 .card {
@@ -172,6 +176,48 @@ body {
 .fade-up.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Hero Background Animation */
+.hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 30%, var(--yellow-dim) 0%, transparent 50%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+  animation: pulse-bg 8s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-bg {
+  0% { transform: scale(1); opacity: 0.3; }
+  100% { transform: scale(1.1); opacity: 0.7; }
+}
+
+.typing-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Glowing terminal box */
+.terminal-glow {
+  border: 1px solid var(--yellow);
+  box-shadow: 0 0 20px var(--yellow-mid), inset 0 0 10px var(--yellow-dim);
+  animation: glow-pulse 3s infinite alternate ease-in-out;
+}
+
+@keyframes glow-pulse {
+  0% { box-shadow: 0 0 15px var(--yellow-mid), inset 0 0 5px var(--yellow-dim); border-color: rgba(255, 210, 8, 0.5); }
+  100% { box-shadow: 0 0 30px rgba(255, 210, 8, 0.4), inset 0 0 15px var(--yellow-dim); border-color: var(--yellow); }
 }
 
 /* Step indicator */
@@ -253,10 +299,27 @@ body {
   cursor: pointer;
   transition: var(--transition);
   font-family: var(--font-sans);
+  position: relative;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background: var(--yellow);
+  transition: width 0.3s ease;
+}
+
+.nav-link:hover::after, .nav-link.active::after {
+  width: 100%;
 }
 
 .nav-link:hover, .nav-link.active {
   color: var(--white);
+  transform: translateY(-1px);
 }
 
 .nav-cta {
@@ -274,6 +337,8 @@ body {
 
 .nav-cta:hover {
   background: #ffe040;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--yellow-mid);
 }
 
 /* Footer */

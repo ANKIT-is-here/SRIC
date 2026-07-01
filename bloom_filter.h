@@ -7,8 +7,6 @@
 #include "utils.h"
 
 #define N_HASH 1                    //Equal to N_Threads
-// #define MAX_BF_BIN_SIZE 1024
-// #define N_BF_BITS 10
 
 #define MAX_BF_BIN_SIZE 8388608
 #define N_BF_BITS 23
