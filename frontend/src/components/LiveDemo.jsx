@@ -239,6 +239,8 @@ const EXPLANATIONS = {
     "Calls TSet_GetTag to derive the encrypted tag for this keyword, then TSet_Retrieve to walk the encrypted posting chain. NWords is 0, so no XToken or bloom filter check is run. This is the NWords=0 branch in EDB_Search.",
   "sse-and":
     "The first keyword you enter is the s-term, the same way main() controls it in the backend: whatever comes first in query_str is used for TSet_Retrieve. For each candidate document returned, the backend computes XToken and XTag for every remaining keyword (the x-terms) and checks the encrypted bloom filter via BloomFilter_Match_N. A document only makes it through if every check passes.",
+  "sse-rdbms":
+    "Upload a CSV and run a plaintext SQL-style query against it, same as the Regular tab. This is here as a direct comparison point: the RDBMS query scans data in the clear, while the SSE tabs above run equivalent searches against encrypted data without the server ever seeing the keywords.",
 };
 
 // ── Server doc card ────────────────────────────────────────────────────────────
@@ -262,7 +264,7 @@ function ServerDoc({ doc }) {
 }
 
 // ── RDBMS CSV upload + query panel ─────────────────────────────────────────────
-function RDBMSPanel({ input, setInput }) {
+function RDBMSPanel({ input, setInput, mode }) {
   const [csvTable, setCsvTable] = useState(null);
   const [result, setResult]     = useState(null);
   const [dropCsv, setDropCsv]   = useState(false);
@@ -306,7 +308,7 @@ function RDBMSPanel({ input, setInput }) {
   return (
     <div>
       <div style={{ fontSize:12, color:"#999", lineHeight:1.65, marginBottom:16, maxWidth:700 }}>
-        {EXPLANATIONS["regular-rdbms"]}
+        {EXPLANATIONS[`${mode}-rdbms`]}
       </div>
 
       {/* CSV upload zone */}
@@ -489,7 +491,7 @@ function RDBMSPanel({ input, setInput }) {
 
 // ── Search console ──────────────────────────────────────────────────────────────
 const REGULAR_QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["rdbms","RDBMS Query"]];
-const SSE_QTYPES     = [["single","Single Term"],["and","Conjunction (AND)"]];
+const SSE_QTYPES     = [["single","Single Term"],["and","Conjunction (AND)"],["rdbms","RDBMS Query"]];
 
 function SearchConsole({ vault, indexedKws }) {
   const [mode, setMode]     = useState("regular");
@@ -502,7 +504,6 @@ function SearchConsole({ vault, indexedKws }) {
   function switchMode(id) {
     setMode(id);
     setResult(null);
-    if (id === "sse" && qtype === "rdbms") setQtype("single");
   }
   function switchQtype(id) { setQtype(id); setResult(null); }
 
@@ -566,7 +567,7 @@ function SearchConsole({ vault, indexedKws }) {
 
       {/* RDBMS tab has its own self-contained panel */}
       {isRdbms ? (
-        <RDBMSPanel input={input} setInput={setInput} />
+        <RDBMSPanel input={input} setInput={setInput} mode={mode} />
       ) : (
         <>
           <div style={{ fontSize:12, color:"#999", lineHeight:1.65, marginBottom:18, maxWidth:700 }}>
