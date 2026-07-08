@@ -50,14 +50,14 @@ export default function Hero({ onDemo }) {
       {/* <div className="hero-bg" /> */}
       <ParticleNetwork />
       <div className="container" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '60px' }}>
-        <div ref={ref} className="fade-up" style={{ textAlign: 'center', maxWidth: 800 }}>
+        <div ref={ref} className="fade-up" style={{ textAlign: 'center', maxWidth: 1000, margin: '0 auto' }}>
           <div className="label" style={{ marginBottom: 24, justifyContent: 'center', display: 'flex' }}>SEC / SEAL Lab, IIT Kharagpur</div>
           <h1 className="heading-xl" style={{ marginBottom: 24 }}>
             Search <span>{text}<span className="typing-cursor">_</span></span><br />
-            <span className="yellow">Reveal nothing.</span>
+            <span className="yellow" style={{ whiteSpace: 'nowrap', fontSize: 'clamp(20px, 5vw, 64px)' }}>Searchable Symmetric Encryption</span>
           </h1>
           <p className="body-lg" style={{ maxWidth: 600, margin: '0 auto 40px auto' }}>
-            Documents live on the server fully encrypted. Search happens without the server ever seeing your query or your files.
+            Documents live on the server fully encrypted. Powered by Searchable Symmetric Encryption (SSE), search happens without the server ever seeing your query or your files.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
             {/* 

@@ -19,7 +19,7 @@ export default function Features() {
   const features = [
     {
       title: "Zero-Knowledge",
-      desc: "The server never sees your queries. Your data remains fully encrypted during search.",
+      desc: "Powered by Searchable Symmetric Encryption, the server never sees your queries. Your data remains fully encrypted during search.",
       icon: "🔒"
     },
     {

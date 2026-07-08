@@ -50,7 +50,7 @@ export default function HowItWorks() {
         <div style={{ marginBottom: 80 }}>
           <div className="label" style={{ marginBottom: 16 }}>How it works</div>
           <h2 className="heading-lg" style={{ maxWidth: 500 }}>
-            What actually happens when you search
+            What actually happens during Searchable Symmetric Encryption
           </h2>
         </div>
 
