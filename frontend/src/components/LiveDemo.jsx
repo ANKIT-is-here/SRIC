@@ -25,13 +25,49 @@ const SAMPLE_PDFS = [
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    /* Primary key: employee_id. Same employee_id + name as employee2.csv so tables can be joined.
-       Rest of fields (dept, role, location) are unique to this table. */
-    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Grace Lee,finance,financial analyst,austin\n8,Henry Clark,engineering,backend developer,remote\n9,Iris Moore,marketing,brand manager,chicago\n10,Jack Turner,sales,regional manager,new york` },
+    content:`employee id,name,department,role,location
+1,Alice Johnson,engineering,senior engineer,remote
+2,Bob Smith,marketing,campaign manager,new york
+3,Carol White,engineering,junior engineer,san francisco
+4,David Brown,sales,account executive,chicago
+5,Eve Davis,engineering,tech lead,remote
+6,Frank Wilson,hr,recruiter,new york
+7,Grace Lee,finance,financial analyst,austin
+8,Henry Clark,engineering,backend developer,remote
+9,Iris Moore,marketing,brand manager,chicago
+10,Jack Turner,sales,regional manager,new york
+11,Alice Johnson,sales,sales analyst,chicago
+12,Bob Smith,engineering,devops engineer,remote
+13,Carol White,hr,hr business partner,austin
+14,Eve Davis,marketing,content strategist,new york
+15,Grace Lee,engineering,frontend developer,san francisco
+16,David Brown,engineering,ml engineer,remote
+17,Iris Moore,sales,enterprise account manager,chicago
+18,Frank Wilson,finance,financial controller,austin
+19,Henry Clark,marketing,growth hacker,new york
+20,Jack Turner,engineering,security engineer,remote` },
   { id:"emp2", name:"employee2.csv",
-    /* Primary key: employee_id. Same employee_id + name as employees.csv.
-       Rest of fields (father name, mother name, blood group, address) are unique to this table. */
-    content:`employee id,name,father name,mother name,blood group,address\n1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York\n2,Bob Smith,James Smith,Patricia Smith,O+,45 Oak Avenue Boston\n3,Carol White,Charles White,Linda White,B-,8 Pine Road San Francisco\n4,David Brown,Richard Brown,Barbara Brown,AB+,99 Maple Lane Chicago\n5,Eve Davis,Joseph Davis,Susan Davis,O-,23 Cedar Blvd Austin\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-,7 Birch Court Seattle\n7,Grace Lee,Daniel Lee,Helen Lee,B+,34 Walnut Street Los Angeles\n8,Henry Clark,Steven Clark,Dorothy Clark,AB+,56 Spruce Ave Denver\n9,Iris Moore,Kevin Moore,Nancy Moore,O+,18 Ash Street Miami\n10,Jack Turner,Brian Turner,Sandra Turner,A+,2 Willow Way Houston` },
+    content:`employee id,name,father name,mother name,blood group,address
+1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York
+2,Bob Smith,James Smith,Patricia Smith,O+,45 Oak Avenue Boston
+3,Carol White,Charles White,Linda White,B-,8 Pine Road San Francisco
+4,David Brown,Richard Brown,Barbara Brown,AB+,99 Maple Lane Chicago
+5,Eve Davis,Joseph Davis,Susan Davis,O-,23 Cedar Blvd Austin
+6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-,7 Birch Court Seattle
+7,Grace Lee,Daniel Lee,Helen Lee,B+,34 Walnut Street Los Angeles
+8,Henry Clark,Steven Clark,Dorothy Clark,AB+,56 Spruce Ave Denver
+9,Iris Moore,Kevin Moore,Nancy Moore,O+,18 Ash Street Miami
+10,Jack Turner,Brian Turner,Sandra Turner,A+,2 Willow Way Houston
+11,Alice Johnson,Robert Johnson,Patricia Johnson,B-,88 Oak Street Chicago
+12,Bob Smith,William Smith,Elizabeth Smith,A+,33 Pine Ave Seattle
+13,Carol White,George White,Jennifer White,O+,14 Maple Rd Austin
+14,Eve Davis,Michael Davis,Karen Davis,AB-,77 Elm Blvd New York
+15,Grace Lee,Andrew Lee,Lisa Lee,A-,5 Birch Lane San Francisco
+16,David Brown,Christopher Brown,Jessica Brown,O-,61 Cedar Court Denver
+17,Iris Moore,Anthony Moore,Sarah Moore,B+,29 Walnut Drive Miami
+18,Frank Wilson,Mark Wilson,Betty Wilson,AB+,43 Spruce Street Boston
+19,Henry Clark,Donald Clark,Helen Clark,O+,17 Willow Way Chicago
+20,Jack Turner,Paul Turner,Donna Turner,A+,92 Ash Avenue Remote` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
@@ -509,27 +545,43 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               </span>
             ))}
           </div>
-          {result.hits.length>0&&(
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
-                <thead><tr>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>table</th>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>row</th>
-                  {(result.hits[0]?.headers||[]).map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#888",border:"1px solid #1a1a1a",whiteSpace:"nowrap"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {result.hits.slice(0,50).map((hit,ri)=>(
-                    <tr key={hit.trid}>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.tbl}</td>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.ri}</td>
-                      {(hit.rowData||[]).map((cell,ci)=><td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {result.hits.length>50&&<div style={{fontSize:10,color:"#666",marginTop:6,fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
-            </div>
-          )}
+          {result.hits.length>0&&(()=>{
+            // Group hits by table so each table gets its own header row
+            const groups={};
+            result.hits.forEach(h=>{if(!groups[h.tbl])groups[h.tbl]=[];groups[h.tbl].push(h);});
+            const TABLE_COLORS={employees:"#ffd208",employee2:"#4ade80",products:"#60a5fa",orders:"#f97316"};
+            const getColor=tbl=>TABLE_COLORS[tbl]||(Object.values(TABLE_COLORS)[Object.keys(groups).indexOf(tbl)%4]||"#a78bfa");
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                {Object.entries(groups).map(([tbl,rows])=>(
+                  <div key={tbl} style={{overflowX:"auto",border:`1px solid ${getColor(tbl)}22`,borderRadius:6}}>
+                    <div style={{padding:"6px 12px",background:`${getColor(tbl)}11`,borderBottom:`1px solid ${getColor(tbl)}33`,fontFamily:"Space Mono,monospace",fontSize:10,color:getColor(tbl),fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                      📋 {tbl} — {rows.length} row{rows.length>1?"s":""}
+                    </div>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
+                      <thead><tr>
+                        <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#555",border:"1px solid #1a1a1a",fontSize:10}}>row #</th>
+                        {(rows[0]?.headers||[]).map(h=>(
+                          <th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:getColor(tbl),border:"1px solid #1a1a1a",whiteSpace:"nowrap",fontSize:10,opacity:0.85}}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {rows.map((hit,ri)=>(
+                          <tr key={hit.trid}>
+                            <td style={{padding:"6px 10px",color:"#555",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d",fontSize:10}}>{hit.ri}</td>
+                            {(hit.rowData||[]).map((cell,ci)=>(
+                              <td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                {result.hits.length>50&&<div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
