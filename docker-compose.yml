@@ -15,6 +15,8 @@ services:
       - .:/app
     command: >
       sh -c "make ntru-oqxt-setup && make ntru-oqxt-search && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      - REDIS_HOST=redis
     depends_on:
       - redis
     restart: unless-stopped

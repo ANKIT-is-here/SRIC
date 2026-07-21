@@ -18,6 +18,9 @@ const SAMPLE_PDFS = [
   { id:"res",  name:"Research_Paper.pdf",
     keywords:["abstract","hypothesis","methodology","results","analysis","citation","dataset","experiment"],
     content:`Research Paper\n\nAbstract novel methodology for dataset analysis\nHypothesis confirmed at p less than 0.05\nMethodology stratified sampling\nResults variance within acceptable bounds\nAnalysis outliers removed IQR filtering\nCitation count 42\nDataset partitioned into stratified samples\nExperiment peer review accepted minor revisions\n` },
+  { id:"comb", name:"combined.pdf",
+    keywords:["revenue","profit","ebitda","quarterly","forecast","audit","balance","equity","encryption","cipher","block","keygen","nonce","padding","ivector","derivation","patient","diagnosis","medication","dosage","glucose","pressure","allergy","treatment","milestone","sprint","backlog","stakeholder","deliverable","roadmap","budget","risks","abstract","hypothesis","methodology","results","analysis","citation","dataset","experiment"],
+    content:`Combined Document\n\nQ3 Financial Report\nRevenue 4.2M\nEBITDA margin 18.3\nNet profit 760K\nForecast revised upward for Q4\nAudit notes No material findings\nBalance sheet remains stable\nEquity position unchanged\n\nEncryption RFC Draft\nCipher AES-256 in CBC mode\nKey derivation PBKDF2 with HMAC-SHA1\nNonce generation CSPRNG 128-bit\nPadding scheme PKCS7\nIV randomly generated per session\nBlock size 128 bits\nKey size 256 bits\n\nMedical Record\nPatient ID 00482-B\nDiagnosis Type 2 Diabetes\nMedication Metformin 500mg\nDosage twice daily with meals\nBlood glucose 126 mg per dL\nBlood pressure 128 over 82 mmHg\nAllergy Penicillin rash\nTreatment dietary adjustment\n\nProject Phoenix Sprint 4\nMilestone M4 Integration complete\nSprint velocity 34 points\nBacklog 14 open 3 blocked\nStakeholder sign-off pending\nDeliverable on track\nRoadmap Phase 2 start Week 14\nBudget utilisation 67 percent\nRisks third-party API delay medium\n\nResearch Paper\nAbstract novel methodology for dataset analysis\nHypothesis confirmed at p less than 0.05\nMethodology stratified sampling\nResults variance within acceptable bounds\nAnalysis outliers removed IQR filtering\nCitation count 42\nDataset partitioned into stratified samples\nExperiment peer review accepted minor revisions\n` },
 ];
 
 const SAMPLE_CSVS = [
@@ -92,7 +95,19 @@ function rowsToCSV(headers,rows){
 //   Nmatch: 0
 //   Search time = 76370 micro-seconds
 
-const BACKEND = "http://localhost:8000";
+const getBackendUrl = () => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  // Handle remote proxies/Codespaces (e.g., ports 3000/8000 mapped to subdomains)
+  if (hostname.includes("-3000.")) {
+    return `${protocol}//${hostname.replace("-3000.", "-8000.")}`;
+  }
+  if (hostname.includes("3000-")) {
+    return `${protocol}//${hostname.replace("3000-", "8000-")}`;
+  }
+  return `http://${hostname}:8000`;
+};
+const BACKEND = getBackendUrl();
 
 async function checkBackend() {
   try {
@@ -454,6 +469,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
   const [input,setInput]   = useState("");
   const [result,setResult] = useState(null);
   const [busy,setBusy]     = useState(false);
+  const [searchCountdown,setSearchCountdown] = useState(4);
 
   const hasVault  = vault.length > 0;
   const sseReady  = backendStatus==="online" && uploadStatus==="done";
@@ -467,13 +483,19 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
       setResult({type:"regular",qtype,...regularSearch(qtype,t,indexedKws),terms:t});
     } else {
       setBusy(true); setResult(null);
+      setSearchCountdown(4);
+      const interval = setInterval(() => {
+        setSearchCountdown(prev => (prev > 1 ? prev - 1 : 1));
+      }, 1000);
       try {
         const r = await sseSearch(t, wordToId, indexedKws);
         setResult({type:"sse",qtype,...r,terms:t});
       } catch(e) {
         setResult({type:"sse",qtype,ok:false,error:e.message,terms:t});
+      } finally {
+        clearInterval(interval);
+        setBusy(false);
       }
-      setBusy(false);
     }
   }
 
@@ -524,8 +546,34 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
               style={{flex:1,padding:"10px 14px",fontSize:13,background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,color:"#f5f5f0",fontFamily:"Space Grotesk, sans-serif",outline:"none"}}
               onFocus={e=>e.target.style.borderColor="#ffd208"} onBlur={e=>e.target.style.borderColor="#1a1a1a"}/>
             <button onClick={handleSearch} disabled={!hasVault||(mode==="sse"&&!sseReady)||busy}
-              style={{padding:"10px 22px",borderRadius:6,fontWeight:700,fontSize:13,background:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#ffd208":"#1a1a1a",color:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#0a0a0a":"#555",border:"none",cursor:"pointer"}}>
-              {busy?"...":"Search"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding:"10px 22px",
+                borderRadius:6,
+                fontWeight:700,
+                fontSize:13,
+                background:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#ffd208":busy?"#ffd20822":"#1a1a1a",
+                color:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#0a0a0a":busy?"#ffd208":"#555",
+                border:"none",
+                cursor: busy ? "wait" : (hasVault&&!(mode==="sse"&&!sseReady)) ? "pointer" : "default",
+                transition: "all 0.15s"
+              }}>
+              {busy ? (
+                <>
+                  <div className="spinner" style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid #ffd20822",
+                    borderTop: "2px solid #ffd208",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <span>Searching (Running ntru-oqxt-search C++ binary... ~{searchCountdown}s)</span>
+                </>
+              ) : "Search"}
             </button>
           </div>
           <div style={{fontSize:11,color:"#666",marginBottom:18}}>{!hasVault?"Upload at least one document before searching.":hint}</div>
@@ -627,6 +675,7 @@ export default function LiveDemo(){
   const [dbIndex,setDbIndex]               = useState(null);
   const [backendStatus,setBackendStatus]   = useState("checking");
   const [uploadStatus,setUploadStatus]     = useState("idle");
+  const [uploadCountdown,setUploadCountdown] = useState(15);
   const [dropActive,setDropActive]         = useState(false);
   const [libOpen,setLibOpen]               = useState(true);
   const [qtype,setQtype]                   = useState("single");
@@ -660,6 +709,10 @@ export default function LiveDemo(){
   // fileOrContent: File object (real PDF/TXT from disk) or string (sample content).
   async function uploadAndCommit(name, fileOrContent, fallbackKeywords, storedContent) {
     setUploadStatus("uploading");
+    setUploadCountdown(15);
+    const interval = setInterval(() => {
+      setUploadCountdown(prev => (prev > 1 ? prev - 1 : 1));
+    }, 1000);
     try {
       const data = await uploadOneFile(name, fileOrContent);
       const proc = data.processed?.[0];
@@ -684,6 +737,8 @@ export default function LiveDemo(){
         rawFile: fileOrContent instanceof File ? fileOrContent : null
       });
       setUploadStatus("error");
+    } finally {
+      clearInterval(interval);
     }
   }
 
@@ -751,6 +806,12 @@ export default function LiveDemo(){
 
   return(
     <div style={{minHeight:"100vh",background:"#0a0a0a",padding:"60px 0",fontFamily:"Space Grotesk, sans-serif"}}>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"0 32px"}}>
         <div style={{marginBottom:48}}>
           <div style={{fontFamily:"Space Mono,monospace",fontSize:11,color:"#ffd208",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12}}>Interactive demo</div>
@@ -765,13 +826,57 @@ export default function LiveDemo(){
               <div style={{fontSize:10,fontFamily:"Space Mono,monospace",letterSpacing:"0.12em",color:"#999",textTransform:"uppercase"}}>Client</div>
             </div>
 
-            <div onDragOver={e=>{e.preventDefault();setDropActive(true);}} onDragLeave={()=>setDropActive(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()}
-              style={{border:`1.5px dashed ${dropActive?"#ffd208":"#1a1a1a"}`,borderRadius:6,padding:"24px 16px",textAlign:"center",cursor:"pointer",background:dropActive?"#ffd20808":"transparent",transition:"all 0.2s ease"}}>
+            <div onDragOver={e=>{e.preventDefault();setDropActive(true);}} onDragLeave={()=>setDropActive(false)} onDrop={handleDrop} onClick={() => uploadStatus !== "uploading" && fileRef.current.click()}
+              style={{
+                border: `1.5px dashed ${uploadStatus === "uploading" ? "#ffd208" : dropActive ? "#ffd208" : "#1a1a1a"}`,
+                borderRadius: 6,
+                padding: "24px 16px",
+                textAlign: "center",
+                cursor: uploadStatus === "uploading" ? "wait" : "pointer",
+                background: uploadStatus === "uploading" || dropActive ? "#ffd20808" : "transparent",
+                transition: "all 0.2s ease",
+                position: "relative"
+              }}>
               <input ref={fileRef} type="file" accept={isRdbms?".csv":".pdf,.txt"} multiple={isRdbms} style={{display:"none"}}
-                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}}/>
-              <div style={{fontSize:22,color:dropActive?"#ffd208":"#444",marginBottom:6,transition:"color 0.2s"}}>↑</div>
-              <div style={{fontSize:13,fontWeight:600,color:dropActive?"#ffd208":"#888"}}>{dropActive?"drop to load":"drop or click to upload"}</div>
-              <div style={{fontSize:11,color:"#555",marginTop:3}}>{isRdbms?"CSV only, each file becomes a table":"PDF or TXT"}</div>
+                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}} disabled={uploadStatus === "uploading"}/>
+              {uploadStatus === "uploading" ? (
+                <div>
+                  <div className="spinner" style={{
+                    width: 24,
+                    height: 24,
+                    border: "2px solid #ffd20822",
+                    borderTop: "2px solid #ffd208",
+                    borderRadius: "50%",
+                    margin: "0 auto 12px",
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <div style={{fontSize: 13, fontWeight: 600, color: "#ffd208", fontFamily: "Space Grotesk, sans-serif"}}>Uploading & Indexing...</div>
+                  <div style={{fontSize: 11, color: "#999", marginTop: 4, fontFamily: "Space Mono, monospace"}}>
+                    Running C++ NTRU cryptographic setup (takes ~{uploadCountdown}s)
+                  </div>
+                  <div style={{
+                    width: "80%",
+                    height: 4,
+                    background: "#1a1a1a",
+                    borderRadius: 2,
+                    margin: "12px auto 0",
+                    overflow: "hidden"
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      background: "#ffd208",
+                      width: `${((15 - uploadCountdown) / 15) * 100}%`,
+                      transition: "width 1s linear"
+                    }} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{fontSize:22,color:dropActive?"#ffd208":"#444",marginBottom:6,transition:"color 0.2s"}}>↑</div>
+                  <div style={{fontSize:13,fontWeight:600,color:dropActive?"#ffd208":"#888"}}>{dropActive?"drop to load":"drop or click to upload"}</div>
+                  <div style={{fontSize:11,color:"#555",marginTop:3}}>{isRdbms?"CSV only, each file becomes a table":"PDF or TXT"}</div>
+                </>
+              )}
             </div>
 
             {/* Sample list switches based on active tab */}

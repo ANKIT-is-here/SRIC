@@ -520,8 +520,8 @@ sw::redis::ConnectionPoolOptions pool_options;
 
 int Sys_Init()
 {
-    
-    connection_options.host = "127.0.0.1";  
+    const char* env_host = std::getenv("REDIS_HOST");
+    connection_options.host = env_host ? env_host : "127.0.0.1";  
     BloomFilter_Init(BF);
 
     return 0;
@@ -1184,7 +1184,9 @@ int TSet_SetUp()
     N_words = (N_max_ids/N_threads) + ((N_max_ids%N_threads==0)?0:1);
     N_max_id_words = N_words * N_threads;
 
-    auto redis = Redis("tcp://127.0.0.1:6379");
+    const char* env_host = std::getenv("REDIS_HOST");
+    std::string redis_host = env_host ? env_host : "127.0.0.1";
+    auto redis = Redis("tcp://" + redis_host + ":6379");
     
     int datasize = (2*N_l) + 16;
 
@@ -1717,7 +1719,7 @@ int main()
 
             ::memset(KE_temp,0x00,16);
 
-            if(!PKCS5_PBKDF2_HMAC_SHA1(KS, strlen(KS),NULL,0,1000,32,KS1))
+            if(!PKCS5_PBKDF2_HMAC_SHA1(KS, 32,NULL,0,1000,32,KS1))
             {
                 printf("Error in key generation\n");
                 exit(1);
@@ -1725,7 +1727,7 @@ int main()
 
             w_local = W;
             ke_temp_local = KE_temp;
-            ke = encrypt(w_local, sizeof(w_local)/sizeof(w_local[0]), aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
+            ke = encrypt(w_local, 16, aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
             w_local = W;
             ke_temp_local = KE_temp;
 
@@ -1780,7 +1782,7 @@ int main()
 			int c = 0;
 			unsigned char r[16];
 		
-			int kr = encrypt(w_local, sizeof(w_local)/sizeof(w_local[0]), aad, sizeof(aad), KZ1, iv_kz, r, tag_kz);
+			int kr = encrypt(w_local, 16, aad, sizeof(aad), KZ1, iv_kz, r, tag_kz);
 			
 			
 			int32_t temp = r;
@@ -2015,7 +2017,7 @@ int main()
         
         //AES Encryption of id using KE
         const char* KE1 = reinterpret_cast<const char *> (KE);
-        if(!PKCS5_PBKDF2_HMAC_SHA1(KE, strlen(KE),NULL,0,1000,32,KE1))
+        if(!PKCS5_PBKDF2_HMAC_SHA1(KE, 32,NULL,0,1000,32,KE1))
         {
             printf("Error in key generation\n");
             exit(1);
@@ -2025,7 +2027,7 @@ int main()
         ec_local = EC;
         for(unsigned int nword=0; nword<n_row_ids; nword++)
         {
-            kec = encrypt(id_local, sizeof(id_local)/sizeof(id_local[0]), aad, sizeof(aad), KE1, iv_ec, ec_local, tag_ec);
+            kec = encrypt(id_local, 16, aad, sizeof(aad), KE1, iv_ec, ec_local, tag_ec);
             id_local += sym_block_size;
             ec_local += 16;
         }

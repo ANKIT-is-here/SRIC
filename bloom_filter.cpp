@@ -65,7 +65,7 @@ int BloomFilter_WriteBFtoFile(std::string bloomfilter_file, unsigned char** &BF)
 
     for(unsigned int i=0;i<N_HASH;++i){
         for(unsigned int j=0;j<MAX_BF_BIN_SIZE;++j){
-            outputfile << std::hex << std::setw(2) << std::setfill('0') << (static_cast<int>(BF[i][j]) & 0xFF) << std::endl;
+            outputfile << std::hex << std::setw(2) << std::setfill('0') << (static_cast<int>(BF[i][j]) & 0xFF) << '\n';
         }
     }
 

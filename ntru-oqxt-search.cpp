@@ -522,8 +522,8 @@ sw::redis::ConnectionPoolOptions pool_options;
 
 int Sys_Init()
 {
-    
-    connection_options.host = "127.0.0.1";  
+    const char* env_host = std::getenv("REDIS_HOST");
+    connection_options.host = env_host ? env_host : "127.0.0.1";  
     BloomFilter_Init(BF);
 
     return 0;
@@ -1156,9 +1156,10 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
     ::memcpy(GL_MGDB_LBL,LBL,(N_threads * 12));
     ::memset(GL_MGDB_RES,0x00,(N_threads * ((2*N_l+16)+1)));
 
-    auto redis = Redis("tcp://127.0.0.1:6379");
-
-        
+    const char* env_host = std::getenv("REDIS_HOST");
+    std::string redis_host = env_host ? env_host : "127.0.0.1";
+    auto redis = Redis("tcp://" + redis_host + ":6379");
+    
     string s = HexToStr(GL_MGDB_BIDX,2) + HexToStr(GL_MGDB_JIDX,2) + HexToStr(GL_MGDB_LBL,12);
     
     auto val = redis.get(s);
@@ -1179,7 +1180,7 @@ int TSet_GetTag(unsigned char *word, unsigned char *stag)
 {
     ::memset(stag,0x00,16);
     
-    k_stag_query = encrypt(word, sizeof(word)/sizeof(word[0]), aad, sizeof(aad), KT1, iv_kt, stag, tag_kt);
+    k_stag_query = encrypt(word, 16, aad, sizeof(aad), KT1, iv_kt, stag, tag_kt);
     return 0;
 }
 
@@ -1281,7 +1282,7 @@ int TSet_Retrieve(unsigned char *stag,unsigned char *tset_row, int *n_ids_tset)
 
     //PRF of stag and if
     const char* stag1 = reinterpret_cast<const char *> (stag);
-    if(!PKCS5_PBKDF2_HMAC_SHA1(stag, strlen(stag),NULL,0,1000,32,stag1))
+    if(!PKCS5_PBKDF2_HMAC_SHA1(stag, 16,NULL,0,1000,32,stag1))
     {
         printf("Error in key generation\n");
         exit(1);
@@ -1290,7 +1291,7 @@ int TSet_Retrieve(unsigned char *stag,unsigned char *tset_row, int *n_ids_tset)
     stagi_local = stagi;
     hashin_local = hashin;
     for(int nword = 0;nword < N_words;++nword){
-        k_stag_TSetRetrieve = encrypt(stagi_local, sizeof(stagi_local)/sizeof(stagi_local[0]), aad, sizeof(aad), stag1, iv_stag, hashin_local, tag_stag);
+        k_stag_TSetRetrieve = encrypt(stagi_local, 16, aad, sizeof(aad), stag1, iv_stag, hashin_local, tag_stag);
        
         stagi_local += 16;
         hashin_local += 16;
@@ -1494,7 +1495,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
     tset_row = new unsigned char[datasize*N_max_id_words];
     tset_yid = new unsigned char[N_l*2*N_max_id_words];
     
-    W = new unsigned char[16*strlen((char *)query_str)];                //Holds the keyword
+    W = new unsigned char[16*(NWords > 0 ? NWords : 1)];                //Holds the keyword
     ID = new unsigned char[16*N_max_id_words];                          //Maximum number of IDs in a row
     WC = new unsigned char[16*N_max_id_words];                          //IDs with counter value(for computing randomness R)
     EC = new unsigned char[16*N_max_id_words];                           //Encrypted IDs
@@ -1924,7 +1925,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
     for(int i=0; i<4;i++) {
         ::memset(KE_temp,0x00,16);
 
-        if(!PKCS5_PBKDF2_HMAC_SHA1(KS, strlen(KS),NULL,0,1000,32,KS1))
+        if(!PKCS5_PBKDF2_HMAC_SHA1(KS, 32,NULL,0,1000,32,KS1))
         {
             printf("Error in key generation\n");
             exit(1);
@@ -1932,7 +1933,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
         
         w_local = W;
         ke_temp_local = KE_temp;
-        ke = encrypt(w_local, sizeof(w_local)/sizeof(Q1[0]), aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
+        ke = encrypt(w_local, 16, aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
         w_local = W;
         ke_temp_local = KE_temp;
 
@@ -1943,7 +1944,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
 
     //AES Decryption of ID using KE
     const char* KE1 = reinterpret_cast<const char *> (KE);
-    if(!PKCS5_PBKDF2_HMAC_SHA1(KE, strlen(KE),NULL,0,1000,32,KE1))
+    if(!PKCS5_PBKDF2_HMAC_SHA1(KE, 32,NULL,0,1000,32,KE1))
     {
         printf("Error in key generation\n");
         exit(1);
