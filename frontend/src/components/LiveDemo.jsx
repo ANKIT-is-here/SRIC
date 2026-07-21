@@ -27,25 +27,35 @@ const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
     content:`employee id,name,department,role,location
 1,Alice Johnson,engineering,senior engineer,remote
-2,Bob Smith,marketing,campaign manager,new york
+2,Bob Smith,engineering,senior engineer,remote
 3,Carol White,engineering,junior engineer,san francisco
-4,David Brown,sales,account executive,chicago
+4,David Brown,engineering,junior engineer,new york
 5,Eve Davis,engineering,tech lead,remote
-6,Frank Wilson,hr,recruiter,new york
-7,Grace Lee,finance,financial analyst,austin
-8,Henry Clark,engineering,backend developer,remote
-9,Iris Moore,marketing,brand manager,chicago
-10,Jack Turner,sales,regional manager,new york
-11,Alice Johnson,sales,sales analyst,chicago
-12,Bob Smith,engineering,devops engineer,remote
-13,Carol White,hr,hr business partner,austin
-14,Eve Davis,marketing,content strategist,new york
-15,Grace Lee,engineering,frontend developer,san francisco
-16,David Brown,engineering,ml engineer,remote
-17,Iris Moore,sales,enterprise account manager,chicago
-18,Frank Wilson,finance,financial controller,austin
-19,Henry Clark,marketing,growth hacker,new york
-20,Jack Turner,engineering,security engineer,remote` },
+6,Frank Wilson,engineering,tech lead,austin
+7,Grace Lee,engineering,backend developer,remote
+8,Henry Clark,engineering,backend developer,chicago
+9,Iris Moore,engineering,frontend developer,san francisco
+10,Jack Turner,engineering,frontend developer,remote
+11,Alice Johnson,marketing,campaign manager,new york
+12,Bob Smith,marketing,campaign manager,chicago
+13,Carol White,marketing,content strategist,remote
+14,David Brown,marketing,brand manager,new york
+15,Eve Davis,marketing,growth hacker,chicago
+16,Frank Wilson,sales,account executive,chicago
+17,Grace Lee,sales,account executive,new york
+18,Henry Clark,sales,regional manager,new york
+19,Iris Moore,sales,sales analyst,remote
+20,Jack Turner,sales,enterprise account manager,chicago
+21,Alice Johnson,hr,recruiter,new york
+22,Bob Smith,hr,hr business partner,austin
+23,Carol White,hr,recruiter,remote
+24,David Brown,finance,financial analyst,austin
+25,Eve Davis,finance,financial controller,new york
+26,Frank Wilson,engineering,devops engineer,remote
+27,Grace Lee,engineering,ml engineer,remote
+28,Henry Clark,engineering,security engineer,chicago
+29,Iris Moore,engineering,senior engineer,chicago
+30,Jack Turner,engineering,junior engineer,remote` },
   { id:"emp2", name:"employee2.csv",
     content:`employee id,name,father name,mother name,blood group,address
 1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York
@@ -61,13 +71,23 @@ const SAMPLE_CSVS = [
 11,Alice Johnson,Robert Johnson,Patricia Johnson,B-,88 Oak Street Chicago
 12,Bob Smith,William Smith,Elizabeth Smith,A+,33 Pine Ave Seattle
 13,Carol White,George White,Jennifer White,O+,14 Maple Rd Austin
-14,Eve Davis,Michael Davis,Karen Davis,AB-,77 Elm Blvd New York
-15,Grace Lee,Andrew Lee,Lisa Lee,A-,5 Birch Lane San Francisco
-16,David Brown,Christopher Brown,Jessica Brown,O-,61 Cedar Court Denver
-17,Iris Moore,Anthony Moore,Sarah Moore,B+,29 Walnut Drive Miami
-18,Frank Wilson,Mark Wilson,Betty Wilson,AB+,43 Spruce Street Boston
-19,Henry Clark,Donald Clark,Helen Clark,O+,17 Willow Way Chicago
-20,Jack Turner,Paul Turner,Donna Turner,A+,92 Ash Avenue Remote` },
+14,David Brown,Christopher Brown,Jessica Brown,O-,61 Cedar Court Denver
+15,Eve Davis,Michael Davis,Karen Davis,AB-,77 Elm Blvd New York
+16,Frank Wilson,Mark Wilson,Betty Wilson,AB+,43 Spruce Street Boston
+17,Grace Lee,Andrew Lee,Lisa Lee,A-,5 Birch Lane San Francisco
+18,Henry Clark,Donald Clark,Helen Clark,O+,17 Willow Way Chicago
+19,Iris Moore,Anthony Moore,Sarah Moore,B+,29 Walnut Drive Miami
+20,Jack Turner,Paul Turner,Donna Turner,A+,92 Ash Avenue Houston
+21,Alice Johnson,Gregory Johnson,Carol Johnson,O+,3 Spruce Blvd Atlanta
+22,Bob Smith,Edward Smith,Ruth Smith,B-,55 Cedar Lane Portland
+23,Carol White,Raymond White,Sharon White,AB+,21 Elm Ave Phoenix
+24,David Brown,Lawrence Brown,Diane Brown,A+,68 Oak Street Dallas
+25,Eve Davis,Scott Davis,Judith Davis,O+,14 Pine Court Nashville
+26,Frank Wilson,Harold Wilson,Virginia Wilson,B+,37 Maple Way Denver
+27,Grace Lee,Wayne Lee,Ann Lee,A-,9 Birch Street Minneapolis
+28,Henry Clark,Arthur Clark,Carolyn Clark,AB-,48 Walnut Blvd Portland
+29,Iris Moore,Eugene Moore,Janet Moore,O-,72 Spruce Road Seattle
+30,Jack Turner,Carl Turner,Mildred Turner,B+,6 Cedar Ave Kansas City` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
