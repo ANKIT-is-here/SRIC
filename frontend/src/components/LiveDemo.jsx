@@ -25,7 +25,69 @@ const SAMPLE_PDFS = [
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    content:`name,department,role,location\nAlice Johnson,engineering,senior engineer,remote\nBob Smith,marketing,campaign manager,new york\nCarol White,engineering,junior engineer,san francisco\nDavid Brown,sales,account executive,chicago\nEve Davis,engineering,tech lead,remote\nFrank Wilson,hr,recruiter,new york` },
+    content:`employee id,name,department,role,location
+1,Alice Johnson,engineering,senior engineer,remote
+2,Bob Smith,engineering,senior engineer,remote
+3,Carol White,engineering,junior engineer,san francisco
+4,David Brown,engineering,junior engineer,new york
+5,Eve Davis,engineering,tech lead,remote
+6,Frank Wilson,engineering,tech lead,austin
+7,Grace Lee,engineering,backend developer,remote
+8,Henry Clark,engineering,backend developer,chicago
+9,Iris Moore,engineering,frontend developer,san francisco
+10,Jack Turner,engineering,frontend developer,remote
+11,Alice Johnson,marketing,campaign manager,new york
+12,Bob Smith,marketing,campaign manager,chicago
+13,Carol White,marketing,content strategist,remote
+14,David Brown,marketing,brand manager,new york
+15,Eve Davis,marketing,growth hacker,chicago
+16,Frank Wilson,sales,account executive,chicago
+17,Grace Lee,sales,account executive,new york
+18,Henry Clark,sales,regional manager,new york
+19,Iris Moore,sales,sales analyst,remote
+20,Jack Turner,sales,enterprise account manager,chicago
+21,Alice Johnson,hr,recruiter,new york
+22,Bob Smith,hr,hr business partner,austin
+23,Carol White,hr,recruiter,remote
+24,David Brown,finance,financial analyst,austin
+25,Eve Davis,finance,financial controller,new york
+26,Frank Wilson,engineering,devops engineer,remote
+27,Grace Lee,engineering,ml engineer,remote
+28,Henry Clark,engineering,security engineer,chicago
+29,Iris Moore,engineering,senior engineer,chicago
+30,Jack Turner,engineering,junior engineer,remote` },
+  { id:"emp2", name:"employee2.csv",
+    content:`employee id,name,father name,mother name,blood group,address
+1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York
+2,Bob Smith,James Smith,Patricia Smith,O+,45 Oak Avenue Boston
+3,Carol White,Charles White,Linda White,B-,8 Pine Road San Francisco
+4,David Brown,Richard Brown,Barbara Brown,AB+,99 Maple Lane Chicago
+5,Eve Davis,Joseph Davis,Susan Davis,O-,23 Cedar Blvd Austin
+6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-,7 Birch Court Seattle
+7,Grace Lee,Daniel Lee,Helen Lee,B+,34 Walnut Street Los Angeles
+8,Henry Clark,Steven Clark,Dorothy Clark,AB+,56 Spruce Ave Denver
+9,Iris Moore,Kevin Moore,Nancy Moore,O+,18 Ash Street Miami
+10,Jack Turner,Brian Turner,Sandra Turner,A+,2 Willow Way Houston
+11,Alice Johnson,Robert Johnson,Patricia Johnson,B-,88 Oak Street Chicago
+12,Bob Smith,William Smith,Elizabeth Smith,A+,33 Pine Ave Seattle
+13,Carol White,George White,Jennifer White,O+,14 Maple Rd Austin
+14,David Brown,Christopher Brown,Jessica Brown,O-,61 Cedar Court Denver
+15,Eve Davis,Michael Davis,Karen Davis,AB-,77 Elm Blvd New York
+16,Frank Wilson,Mark Wilson,Betty Wilson,AB+,43 Spruce Street Boston
+17,Grace Lee,Andrew Lee,Lisa Lee,A-,5 Birch Lane San Francisco
+18,Henry Clark,Donald Clark,Helen Clark,O+,17 Willow Way Chicago
+19,Iris Moore,Anthony Moore,Sarah Moore,B+,29 Walnut Drive Miami
+20,Jack Turner,Paul Turner,Donna Turner,A+,92 Ash Avenue Houston
+21,Alice Johnson,Gregory Johnson,Carol Johnson,O+,3 Spruce Blvd Atlanta
+22,Bob Smith,Edward Smith,Ruth Smith,B-,55 Cedar Lane Portland
+23,Carol White,Raymond White,Sharon White,AB+,21 Elm Ave Phoenix
+24,David Brown,Lawrence Brown,Diane Brown,A+,68 Oak Street Dallas
+25,Eve Davis,Scott Davis,Judith Davis,O+,14 Pine Court Nashville
+26,Frank Wilson,Harold Wilson,Virginia Wilson,B+,37 Maple Way Denver
+27,Grace Lee,Wayne Lee,Ann Lee,A-,9 Birch Street Minneapolis
+28,Henry Clark,Arthur Clark,Carolyn Clark,AB-,48 Walnut Blvd Portland
+29,Iris Moore,Eugene Moore,Janet Moore,O-,72 Spruce Road Seattle
+30,Jack Turner,Carl Turner,Mildred Turner,B+,6 Cedar Ave Kansas City` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
@@ -238,23 +300,87 @@ class TCVMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
   lookup(tbl,col,val){return this._t.get(`${tbl}\0${col}\0${val}`);}
   label(id){const e=this._f.get(id);return e?`(${e.tbl},${e.col},'${e.val}')`:id;}}
 class TRMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
-  getOrCreate(tbl,ri){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri});}return this._t.get(k);}
+  // rowData stores the full row array so we can access employee_id for cross-table joins
+  getOrCreate(tbl,ri,rowData){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri,rowData:rowData||[]});}return this._t.get(k);}
   resolve(id){return this._f.get(id)||null;}}
 function buildIndex(tables){
   const tcv=new TCVMap(),tr=new TRMap(),idx=new Map();
   for(const{name,headers,rows}of tables)for(let ri=0;ri<rows.length;ri++){
-    const trid=tr.getOrCreate(name,ri);
+    const trid=tr.getOrCreate(name,ri,rows[ri]);
     for(let ci=0;ci<headers.length;ci++){const val=normalise(rows[ri][ci]);const tcvId=tcv.getOrCreate(name,headers[ci],val);if(!idx.has(tcvId))idx.set(tcvId,new Set());idx.get(tcvId).add(trid);}
   }
   return{tcv,tr,idx};
 }
-function rdbmsConjSearch(tcvIds,idx,tr){
+
+// Resolve a set of TR IDs to full row objects
+function resolveTrIds(trIdSet,tr){return [...trIdSet].map(id=>{const r=tr.resolve(id);return r?{trid:id,...r}:null;}).filter(Boolean);}
+
+// Cross-table conjunctive search using employee_id as the primary key.
+// Groups filters by table, finds candidate rows per table, then joins on the
+// primary key (first column named "employee id" / "employee_id" / "id").
+function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
   if(!tcvIds.length)return{hits:[],missing:[]};
   const missing=tcvIds.filter(id=>!idx.has(id));
   if(missing.length)return{hits:[],missing};
-  let result=new Set(idx.get(tcvIds[0]));
-  for(let i=1;i<tcvIds.length;i++)for(const id of result)if(!idx.get(tcvIds[i]).has(id))result.delete(id);
-  return{hits:[...result].map(trid=>{const r=tr.resolve(trid);return r?{trid,...r}:null;}).filter(Boolean),missing:[]};
+
+  // Detect whether this is a cross-table query
+  const tables=[...new Set((activeFilters||[]).map(f=>f.table).filter(Boolean))];
+  const isCrossTable=tables.length>1;
+
+  if(!isCrossTable){
+    // Same-table: plain TR-ID intersection
+    let result=new Set(idx.get(tcvIds[0]));
+    for(let i=1;i<tcvIds.length;i++){
+      const next=idx.get(tcvIds[i]);
+      for(const id of [...result])if(!next.has(id))result.delete(id);
+    }
+    return{hits:resolveTrIds(result,tr),missing:[]};
+  }
+
+  // Cross-table: for each table, intersect only the filters that belong to it,
+  // then join across tables on employee_id (primary key = first column).
+  // Build map: tableName -> Set of matching TR IDs
+  const perTableHits={};
+  for(const tbl of tables){
+    const tblFilters=(activeFilters||[]).filter(f=>f.table===tbl);
+    const tblTcvIds=tblFilters.map(f=>idx.has(tcvIds[(activeFilters||[]).indexOf(f)])?tcvIds[(activeFilters||[]).indexOf(f)]:null).filter(Boolean);
+    if(!tblTcvIds.length){perTableHits[tbl]=new Set();continue;}
+    let s=new Set(idx.get(tblTcvIds[0]));
+    for(let i=1;i<tblTcvIds.length;i++){const nx=idx.get(tblTcvIds[i]);for(const id of [...s])if(!nx.has(id))s.delete(id);}
+    perTableHits[tbl]=s;
+  }
+
+  // Extract primary-key values (employee id) from each table's matching rows
+  function getPkVal(trid,tbl){
+    const resolved=tr.resolve(trid);
+    if(!resolved)return null;
+    const td=tableData?.[tbl];
+    if(!td)return null;
+    // Primary key column: first column whose name contains "employee id" / "employee_id" / "id"
+    const pkCol=td.headers.findIndex(h=>/(employee.?id|^id$)/i.test(h));
+    if(pkCol<0)return null;
+    return normalise(resolved.rowData[pkCol]);
+  }
+
+  // Find the common primary-key values across all tables
+  const pkSets=tables.map(tbl=>new Set([...perTableHits[tbl]].map(id=>getPkVal(id,tbl)).filter(Boolean)));
+  let commonPks=pkSets[0];
+  for(let i=1;i<pkSets.length;i++)commonPks=new Set([...commonPks].filter(pk=>pkSets[i].has(pk)));
+
+  if(!commonPks.size)return{hits:[],missing:[]};
+
+  // Collect all matching rows from ALL tables whose employee_id is in the common set
+  const hits=[];
+  for(const tbl of tables){
+    for(const trid of perTableHits[tbl]){
+      const pk=getPkVal(trid,tbl);
+      if(pk&&commonPks.has(pk)){
+        const r=tr.resolve(trid);
+        if(r)hits.push({trid,...r});
+      }
+    }
+  }
+  return{hits,missing:[]};
 }
 
 // ── Explanations ───────────────────────────────────────────────────────────────
@@ -369,12 +495,17 @@ function RDBMSPanel({mode,tableData,dbIndex}){
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
-    const tcvIds=active.map(f=>dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))).filter(Boolean);
+    // Build array of (tcvId, filter) pairs — we need to keep the filter alongside the tcvId
+    // so the cross-table join knows which tcvId belongs to which table
+    const tcvPairs=active.map(f=>({f,id:dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))}));
+    const tcvIds=tcvPairs.map(p=>p.id).filter(Boolean);
+    // Re-map active filters to only those that resolved to a valid tcvId
+    const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
     const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr);
+    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
     const ms=performance.now()-t0;
-    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:td.rows[h.ri]||[]}:h;});
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:active.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
+    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
@@ -434,27 +565,43 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               </span>
             ))}
           </div>
-          {result.hits.length>0&&(
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
-                <thead><tr>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>table</th>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>row</th>
-                  {(result.hits[0]?.headers||[]).map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#888",border:"1px solid #1a1a1a",whiteSpace:"nowrap"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {result.hits.slice(0,50).map((hit,ri)=>(
-                    <tr key={hit.trid}>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.tbl}</td>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.ri}</td>
-                      {(hit.rowData||[]).map((cell,ci)=><td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {result.hits.length>50&&<div style={{fontSize:10,color:"#666",marginTop:6,fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
-            </div>
-          )}
+          {result.hits.length>0&&(()=>{
+            // Group hits by table so each table gets its own header row
+            const groups={};
+            result.hits.forEach(h=>{if(!groups[h.tbl])groups[h.tbl]=[];groups[h.tbl].push(h);});
+            const TABLE_COLORS={employees:"#ffd208",employee2:"#4ade80",products:"#60a5fa",orders:"#f97316"};
+            const getColor=tbl=>TABLE_COLORS[tbl]||(Object.values(TABLE_COLORS)[Object.keys(groups).indexOf(tbl)%4]||"#a78bfa");
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                {Object.entries(groups).map(([tbl,rows])=>(
+                  <div key={tbl} style={{overflowX:"auto",border:`1px solid ${getColor(tbl)}22`,borderRadius:6}}>
+                    <div style={{padding:"6px 12px",background:`${getColor(tbl)}11`,borderBottom:`1px solid ${getColor(tbl)}33`,fontFamily:"Space Mono,monospace",fontSize:10,color:getColor(tbl),fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                      📋 {tbl} — {rows.length} row{rows.length>1?"s":""}
+                    </div>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
+                      <thead><tr>
+                        <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#555",border:"1px solid #1a1a1a",fontSize:10}}>row #</th>
+                        {(rows[0]?.headers||[]).map(h=>(
+                          <th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:getColor(tbl),border:"1px solid #1a1a1a",whiteSpace:"nowrap",fontSize:10,opacity:0.85}}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {rows.map((hit,ri)=>(
+                          <tr key={hit.trid}>
+                            <td style={{padding:"6px 10px",color:"#555",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d",fontSize:10}}>{hit.ri}</td>
+                            {(hit.rowData||[]).map((cell,ci)=>(
+                              <td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                {result.hits.length>50&&<div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
