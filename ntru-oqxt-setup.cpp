@@ -520,8 +520,8 @@ sw::redis::ConnectionPoolOptions pool_options;
 
 int Sys_Init()
 {
-    
-    connection_options.host = "127.0.0.1";  
+    const char* env_host = std::getenv("REDIS_HOST");
+    connection_options.host = env_host ? env_host : "127.0.0.1";  
     BloomFilter_Init(BF);
 
     return 0;
@@ -1184,7 +1184,9 @@ int TSet_SetUp()
     N_words = (N_max_ids/N_threads) + ((N_max_ids%N_threads==0)?0:1);
     N_max_id_words = N_words * N_threads;
 
-    auto redis = Redis("tcp://127.0.0.1:6379");
+    const char* env_host = std::getenv("REDIS_HOST");
+    std::string redis_host = env_host ? env_host : "127.0.0.1";
+    auto redis = Redis("tcp://" + redis_host + ":6379");
     
     int datasize = (2*N_l) + 16;
 
@@ -1276,7 +1278,7 @@ int TSet_SetUp()
 
         tw_local = TW;
         n_row_ids = 0;
-        while(std::getline(ss,s,',') && !ss.eof()) {
+        while(std::getline(ss,s,',')) {
             if(!s.empty()){
                 DB_StrToHexN(tw_local,s.data(),datasize);//Read the id
                 tw_local += datasize;
@@ -1294,7 +1296,7 @@ int TSet_SetUp()
 
         stag_local = stag;
         w_local = W;
-        kt = encrypt(w_local, sizeof(w_local)/sizeof(w_local[0]), aad, sizeof(aad), KT1, iv_kt, stag_local, tag_kt);
+        kt = encrypt(w_local, 16, aad, sizeof(aad), KT1, iv_kt, stag_local, tag_kt);
         stag_local += EVP_MAX_BLOCK_LENGTH;
         w_local += 16;
       
@@ -1314,17 +1316,27 @@ int TSet_SetUp()
 
      
         //PRF of stag and i
-        const char* stag1 = reinterpret_cast<const char *> (stag);
-        if(!PKCS5_PBKDF2_HMAC_SHA1(stag, strlen(stag),NULL,0,1000,32,stag1))
+        // FIX: previously `stag1` aliased `stag` (same address) and was
+        // passed as BOTH the PBKDF2 input password AND its output buffer,
+        // while the password length was computed with strlen() on raw
+        // (non-null-terminated) ciphertext. Reading and writing the same
+        // memory mid-computation is undefined behavior and corrupts the
+        // heap over repeated iterations, which is what eventually surfaces
+        // as "free(): invalid pointer" when the buffers are deleted below.
+        // Fix: derive into a separate buffer, and use the real, fixed
+        // ciphertext length instead of strlen().
+        unsigned char stag1_buf[32];
+        if(!PKCS5_PBKDF2_HMAC_SHA1(reinterpret_cast<const char *>(stag), EVP_MAX_BLOCK_LENGTH, NULL, 0, 1000, 32, stag1_buf))
         {
             printf("Error in key generation\n");
             exit(1);
         }
+        const char* stag1 = reinterpret_cast<const char *> (stag1_buf);
 
         stagi_local = stagi;
         hashin_local = hashin;
         for(int nword = 0;nword < N_words;++nword){
-            k_stag = encrypt(stagi_local, sizeof(stagi_local)/sizeof(stagi_local[0]), aad, sizeof(aad), stag1, iv_stag, hashin_local, tag_stag);
+            k_stag = encrypt(stagi_local, 16, aad, sizeof(aad), stag1, iv_stag, hashin_local, tag_stag);
             stagi_local += 16;
             hashin_local += 16;
         }
@@ -1684,7 +1696,7 @@ int main()
         id_local = ID;
 
         n_row_ids = 0;                                 
-        while(std::getline(ss,s,',') && !ss.eof()) {
+        while(std::getline(ss,s,',')) {
             if(!s.empty()){
                 DB_StrToHex8(id_local,s.data());        
                 
@@ -1707,7 +1719,7 @@ int main()
 
             ::memset(KE_temp,0x00,16);
 
-            if(!PKCS5_PBKDF2_HMAC_SHA1(KS, strlen(KS),NULL,0,1000,32,KS1))
+            if(!PKCS5_PBKDF2_HMAC_SHA1(KS, 32,NULL,0,1000,32,KS1))
             {
                 printf("Error in key generation\n");
                 exit(1);
@@ -1715,7 +1727,7 @@ int main()
 
             w_local = W;
             ke_temp_local = KE_temp;
-            ke = encrypt(w_local, sizeof(w_local)/sizeof(w_local[0]), aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
+            ke = encrypt(w_local, 16, aad, sizeof(aad), KS1, iv_ks, ke_temp_local, tag_ks);       
             w_local = W;
             ke_temp_local = KE_temp;
 
@@ -1770,7 +1782,7 @@ int main()
 			int c = 0;
 			unsigned char r[16];
 		
-			int kr = encrypt(w_local, sizeof(w_local)/sizeof(w_local[0]), aad, sizeof(aad), KZ1, iv_kz, r, tag_kz);
+			int kr = encrypt(w_local, 16, aad, sizeof(aad), KZ1, iv_kz, r, tag_kz);
 			
 			
 			int32_t temp = r;
@@ -2005,7 +2017,7 @@ int main()
         
         //AES Encryption of id using KE
         const char* KE1 = reinterpret_cast<const char *> (KE);
-        if(!PKCS5_PBKDF2_HMAC_SHA1(KE, strlen(KE),NULL,0,1000,32,KE1))
+        if(!PKCS5_PBKDF2_HMAC_SHA1(KE, 32,NULL,0,1000,32,KE1))
         {
             printf("Error in key generation\n");
             exit(1);
@@ -2015,7 +2027,7 @@ int main()
         ec_local = EC;
         for(unsigned int nword=0; nword<n_row_ids; nword++)
         {
-            kec = encrypt(id_local, sizeof(id_local)/sizeof(id_local[0]), aad, sizeof(aad), KE1, iv_ec, ec_local, tag_ec);
+            kec = encrypt(id_local, 16, aad, sizeof(aad), KE1, iv_ec, ec_local, tag_ec);
             id_local += sym_block_size;
             ec_local += 16;
         }
@@ -2112,4 +2124,4 @@ int main()
 
     
     return 0;
-}   
+}
