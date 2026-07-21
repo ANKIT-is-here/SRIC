@@ -2,10 +2,22 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
-import os, csv, re, subprocess
+import os, csv, re, subprocess, time, io, logging, glob
 from typing import List
+import PyPDF2
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+log = logging.getLogger("inverted_index")
 
 app = FastAPI(title="Inverted Index Builder")
+
+# Directory this script lives in — used as the cwd for the setup/search
+# binaries so they reliably find db6k.dat regardless of where uvicorn
+# was launched from.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,13 +34,18 @@ ID_TO_WORD_PATH = os.path.join(DATA_DIR, "id_to_word.csv")
 DOC_TO_ID_PATH  = os.path.join(DATA_DIR, "doc_to_id.csv")
 ID_TO_DOC_PATH  = os.path.join(DATA_DIR, "id_to_doc.csv")
 INDEX_PATH      = os.path.join(DATA_DIR, "inverted_index.csv")
-DAT_PATH        = "db6k.dat"          # written next to main.py, consumed by binaries
+DAT_PATH        = "db6k.dat"
 
-SETUP_BINARY    = "./ntru-oqxt-setup"
-SEARCH_BINARY   = "./ntru-oqxt-search"
+SETUP_BINARY  = "./ntru-oqxt-setup"
+SEARCH_BINARY = "./ntru-oqxt-search"
+
+# Keeps the full, untruncated result of the most recent binary invocation so
+# it can be inspected via GET /debug/last-run even if you can't easily tail
+# the server's terminal/log output.
+_last_run: dict = {}
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 def load_csv_map(path: str, key_col: str, val_col: str) -> dict:
     result = {}
@@ -67,101 +84,123 @@ def load_inverted_index() -> dict:
         return idx
     with open(INDEX_PATH, newline="", encoding="utf-8") as f:
         for row in csv.reader(f):
-            if not row:
+            if not row or row[0] == "word_id":
                 continue
-            # skip header row if present
-            if row[0] == "word_id":
-                continue
-            word_id = row[0]
-            doc_ids = set(row[1:]) if len(row) > 1 else set()
-            idx[word_id] = doc_ids
+            idx[row[0]] = set(row[1:]) if len(row) > 1 else set()
     return idx
 
 
 def save_inverted_index(idx: dict):
-    """
-    Write inverted index to two locations:
-      1. data/inverted_index.csv  – human-readable CSV with header
-      2. db6k.dat                 – no header, raw CSV, consumed by ntru binaries
-    Both are sorted by word_id for deterministic output.
-    """
     sorted_items = sorted(idx.items())
-
-    # --- CSV (with header) ---
     with open(INDEX_PATH, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["word_id", "doc_ids..."])
         for word_id, doc_ids in sorted_items:
             w.writerow([word_id] + sorted(doc_ids))
-
-    # --- .dat (no header, raw) ---
+            
+    # Clean write without the trailing comma
     with open(DAT_PATH, "w", encoding="utf-8") as f:
         for word_id, doc_ids in sorted_items:
-            row = [word_id] + sorted(doc_ids)
-            f.write(",".join(row) + ",\n")
+            f.write(",".join([word_id] + sorted(doc_ids)) + "\n")
+
+
+def extract_text(filename: str, file_bytes: bytes) -> str:
+    """
+    Extract plain text from file bytes.
+    For real PDFs: PyPDF2 extracts text properly.
+    Fallback to raw UTF-8 decode handles plain-text files sent with .pdf
+    extension (used by the demo for sample PDFs).
+    """
+    if filename.lower().endswith(".pdf"):
+        try:
+            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            text = "".join(page.extract_text() or "" for page in reader.pages)
+            if text.strip():
+                return text
+        except Exception:
+            pass
+    return file_bytes.decode("utf-8", errors="ignore")
+
+
+def cleanup_stale_binary_state():
+    """
+    Remove artifacts that the setup/search binaries may have written on a
+    previous, crashed run (TSet DBs, lock files, temp state, etc). A common
+    cause of a native SSE-setup crashing on a fresh run is that it's reading
+    half-written state left behind by an earlier failed run. We only know
+    about db6k.dat for certain (main.py writes it), but we also sweep common
+    patterns the binary itself might drop next to it.
+    """
+    patterns = ["*.tset", "*.db", "*.lock", "*.tmp", "TSet*", "tset*"]
+    removed = []
+    for pattern in patterns:
+        for path in glob.glob(os.path.join(BASE_DIR, pattern)):
+            # never touch the source db6k.dat we just wrote, or the binaries themselves
+            if os.path.basename(path) in (os.path.basename(DAT_PATH),) or path.endswith(("-setup", "-search")):
+                continue
+            try:
+                os.remove(path)
+                removed.append(os.path.basename(path))
+            except OSError as e:
+                log.warning("Could not remove stale artifact %s: %s", path, e)
+    if removed:
+        log.info("Cleaned up stale binary state before run: %s", removed)
 
 
 def run_binary(binary: str, args: List[str], timeout: int = 60) -> dict:
-    """
-    Run a binary with args. Returns dict with command, exit_code, output.
-    Raises HTTPException on hard failures (not found, timeout, etc.)
-    """
-    if not os.path.isfile(binary):
+    binary_path = os.path.join(BASE_DIR, binary) if not os.path.isabs(binary) else binary
+    if not os.path.isfile(binary_path):
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Binary '{binary}' not found. "
-                f"Place it in the same directory as main.py and make it executable (chmod +x {binary})."
-            ),
+            detail=f"Binary '{binary}' not found in {BASE_DIR}. Place it next to main.py and run: chmod +x {binary}",
         )
-
-    cmd = [binary] + args
+    cmd = [binary_path] + args
+    log.info("Running: %s (cwd=%s)", " ".join(cmd), BASE_DIR)
     try:
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+            cmd, capture_output=True, text=True, timeout=timeout, cwd=BASE_DIR
         )
-        combined = result.stdout
-        if result.stderr:
-            combined += "\n--- stderr ---\n" + result.stderr
-        return {
-            "command":   " ".join(cmd),
-            "exit_code": result.returncode,
-            "output":    combined.strip() or "(binary produced no output)",
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+
+        # Always log full, untruncated output server-side — this is what
+        # "check backend logs" in the frontend banner should actually mean.
+        log.info("Exit code: %s", result.returncode)
+        if stdout:
+            log.info("stdout:\n%s", stdout)
+        if stderr:
+            log.info("stderr:\n%s", stderr)
+        if result.returncode != 0:
+            log.error(
+                "Binary '%s' exited non-zero (%s). This is a crash/failure inside "
+                "the compiled binary itself, not in main.py — the stderr above "
+                "(if any) is the only clue we have. Common causes: fixed-size "
+                "internal buffers being exceeded, missing/corrupt state files "
+                "from a previous run, or a required dependency (e.g. Redis) "
+                "not running.",
+                binary, result.returncode,
+            )
+
+        combined = stdout
+        if stderr:
+            combined += "\n--- stderr ---\n" + stderr
+
+        run_info = {
+            "command":    " ".join(cmd),
+            "exit_code":  result.returncode,
+            "output":     combined.strip() or "(binary produced no output)",
+            "stdout":     stdout,
+            "stderr":     stderr,
         }
+        _last_run.update(run_info)
+        return run_info
     except FileNotFoundError:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Binary not executable or missing: {binary}",
-        )
+        raise HTTPException(status_code=500, detail=f"Binary not executable: {binary_path}")
     except subprocess.TimeoutExpired:
-        raise HTTPException(
-            status_code=504,
-            detail=f"Binary timed out after {timeout}s",
-        )
-    except OSError as e:
-        # Mock execution for Windows since the binaries are Linux ELFs
-        if os.name == 'nt':
-            if "setup" in binary:
-                return {
-                    "command": " ".join(cmd),
-                    "exit_code": 0,
-                    "output": "Mock Execution (Windows OS detected)\n[OK] Setup complete. Encrypted index simulated."
-                }
-            elif "search" in binary:
-                # To simulate a search result, let's grab random doc IDs or just say we found something.
-                # Actually, we should return all indexed doc_ids since this is a mock.
-                idx = load_inverted_index()
-                # For a mock, just return dummy match:
-                return {
-                    "command": " ".join(cmd),
-                    "exit_code": 0,
-                    "output": "Mock Execution (Windows OS detected)\n[OK] Search complete. Simulated results."
-                }
-        raise HTTPException(status_code=500, detail=str(e))
+        log.error("Binary '%s' timed out after %ss", binary, timeout)
+        raise HTTPException(status_code=504, detail=f"Binary timed out after {timeout}s")
     except Exception as e:
+        log.exception("Unexpected error running binary '%s'", binary)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -169,7 +208,6 @@ def run_binary(binary: str, args: List[str], timeout: int = 60) -> dict:
 
 @app.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
-    # Load existing mappings
     word_to_id = load_csv_map(WORD_TO_ID_PATH, "word", "id")
     id_to_word = {v: k for k, v in word_to_id.items()}
     doc_to_id  = load_csv_map(DOC_TO_ID_PATH, "doc_name", "id")
@@ -179,10 +217,10 @@ async def upload_files(files: List[UploadFile] = File(...)):
     results = []
 
     for upload in files:
-        filename = upload.filename
-        content  = (await upload.read()).decode("utf-8", errors="ignore")
+        filename   = upload.filename
+        file_bytes = await upload.read()
+        content    = extract_text(filename, file_bytes)
 
-        # Assign doc ID (stable across re-uploads of same filename)
         if filename not in doc_to_id:
             doc_id = next_hex_id(set(doc_to_id.values()))
             doc_to_id[filename] = doc_id
@@ -198,42 +236,52 @@ async def upload_files(files: List[UploadFile] = File(...)):
                 wid = next_hex_id(set(word_to_id.values()))
                 word_to_id[word] = wid
                 id_to_word[wid]  = word
-            wid = word_to_id[word]
-            inv_index.setdefault(wid, set()).add(doc_id)
+            inv_index.setdefault(word_to_id[word], set()).add(doc_id)
 
         results.append({
-            "filename":    filename,
-            "doc_id":      doc_id,
-            "token_count": len(tokens),
+            "filename":     filename,
+            "doc_id":       doc_id,
+            "token_count":  len(tokens),
             "unique_words": len(unique_tokens),
+            "keywords":     sorted(unique_tokens),
+            "text":         content,
         })
 
-    # ── Persist CSVs + db6k.dat ───────────────────────────────────────────
     save_two_col_csv(WORD_TO_ID_PATH, "word",     "id",       word_to_id)
     save_two_col_csv(ID_TO_WORD_PATH, "id",       "word",     id_to_word)
     save_two_col_csv(DOC_TO_ID_PATH,  "doc_name", "id",       doc_to_id)
     save_two_col_csv(ID_TO_DOC_PATH,  "id",       "doc_name", id_to_doc)
-    save_inverted_index(inv_index)      # writes both inverted_index.csv AND db6k.dat
+    save_inverted_index(inv_index)
 
-    # ── Run ntru-oqxt-setup ───────────────────────────────────────────────
     setup_result = None
     setup_error  = None
     try:
+        cleanup_stale_binary_state()
         setup_result = run_binary(SETUP_BINARY, [], timeout=120)
     except HTTPException as e:
-        # Don't fail the whole upload — surface the error to the client instead
         setup_error = e.detail
+        log.error("Setup binary raised: %s", e.detail)
 
     return {
-        "status":                   "success",
-        "processed":                results,
-        "total_words_in_vocab":     len(word_to_id),
-        "total_docs_indexed":       len(doc_to_id),
-        "inverted_index_entries":   len(inv_index),
-        "dat_path":                 os.path.abspath(DAT_PATH),
-        "setup":                    setup_result,   # None if binary missing
-        "setup_error":              setup_error,    # None if ran OK
+        "status":                 "success",
+        "processed":              results,
+        "total_words_in_vocab":   len(word_to_id),
+        "total_docs_indexed":     len(doc_to_id),
+        "inverted_index_entries": len(inv_index),
+        "dat_path":               os.path.abspath(DAT_PATH),
+        "setup":                  setup_result,
+        "setup_error":            setup_error,
     }
+
+
+@app.get("/debug/last-run")
+def debug_last_run():
+    """Full, untruncated stdout/stderr/exit code of the most recent
+    ntru-oqxt-setup or ntru-oqxt-search invocation. Use this to see the
+    real crash reason — the frontend banner only shows the first 200 chars."""
+    if not _last_run:
+        return {"message": "No binary has been run yet."}
+    return _last_run
 
 
 @app.get("/stats")
@@ -241,14 +289,12 @@ def get_stats():
     word_to_id = load_csv_map(WORD_TO_ID_PATH, "word", "id")
     doc_to_id  = load_csv_map(DOC_TO_ID_PATH, "doc_name", "id")
     inv_index  = load_inverted_index()
-    docs         = [{"name": k, "id": v} for k, v in doc_to_id.items()]
-    words_sample = [{"word": k, "id": v} for k, v in list(word_to_id.items())[:20]]
     return {
         "total_words":   len(word_to_id),
         "total_docs":    len(doc_to_id),
         "index_entries": len(inv_index),
-        "docs":          docs,
-        "words_sample":  words_sample,
+        "docs":          [{"name": k, "id": v} for k, v in doc_to_id.items()],
+        "words_sample":  [{"word": k, "id": v} for k, v in list(word_to_id.items())[:20]],
         "dat_exists":    os.path.isfile(DAT_PATH),
         "dat_path":      os.path.abspath(DAT_PATH),
     }
@@ -256,33 +302,24 @@ def get_stats():
 
 @app.get("/search")
 def search_word(q: str):
+    t0 = time.perf_counter()
+
     word_to_id = load_csv_map(WORD_TO_ID_PATH, "word", "id")
-    id_to_doc  = load_csv_map(ID_TO_DOC_PATH, "id", "doc_name")
+    id_to_doc  = load_csv_map(ID_TO_DOC_PATH,  "id",   "doc_name")
     inv_index  = load_inverted_index()
 
     word = q.lower().strip()
+
     if word not in word_to_id:
-        return {"found": False, "word": word, "docs": []}
+        ms = round((time.perf_counter() - t0) * 1000, 4)
+        return {"found": False, "word": word, "docs": [], "time_taken": ms}
 
     wid     = word_to_id[word]
     doc_ids = inv_index.get(wid, set())
     docs    = [{"doc_id": did, "doc_name": id_to_doc.get(did, "?")} for did in doc_ids]
-    return {"found": True, "word": word, "word_id": wid, "docs": docs}
+    ms      = round((time.perf_counter() - t0) * 1000, 4)
 
-
-@app.get("/download/{filename}")
-def download_file(filename: str):
-    allowed = {
-        "word_to_id.csv", "id_to_word.csv",
-        "doc_to_id.csv",  "id_to_doc.csv",
-        "inverted_index.csv",
-    }
-    if filename not in allowed:
-        return JSONResponse(status_code=404, content={"error": "Not found"})
-    path = os.path.join(DATA_DIR, filename)
-    if not os.path.exists(path):
-        return JSONResponse(status_code=404, content={"error": "File not generated yet"})
-    return FileResponse(path, filename=filename, media_type="text/csv")
+    return {"found": True, "word": word, "word_id": wid, "docs": docs, "time_taken": ms}
 
 
 class ConjunctiveRequest(BaseModel):
@@ -295,21 +332,42 @@ def conjunctive_search(req: ConjunctiveRequest):
     if not req.word_ids:
         raise HTTPException(status_code=400, detail="No word IDs provided")
 
+    t0     = time.perf_counter()
     result = run_binary(SEARCH_BINARY, req.word_ids, timeout=30)
+    ms     = round((time.perf_counter() - t0) * 1000, 4)
+
     return {
         **result,
-        "word_ids": req.word_ids,
-        "words":    req.words,
+        "word_ids":   req.word_ids,
+        "words":      req.words,
+        "time_taken": ms,
     }
+
+
+@app.get("/download/{filename}")
+def download_file(filename: str):
+    allowed = {"word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv"}
+    if filename not in allowed:
+        return JSONResponse(status_code=404, content={"error": "Not found"})
+    path = os.path.join(DATA_DIR, filename)
+    if not os.path.exists(path):
+        return JSONResponse(status_code=404, content={"error": "File not generated yet"})
+    return FileResponse(path, filename=filename, media_type="text/csv")
 
 
 @app.delete("/reset")
 def reset():
-    for f in ["word_to_id.csv", "id_to_word.csv", "doc_to_id.csv",
-              "id_to_doc.csv",  "inverted_index.csv"]:
+    for f in ["word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv"]:
         p = os.path.join(DATA_DIR, f)
         if os.path.exists(p):
             os.remove(p)
     if os.path.exists(DAT_PATH):
         os.remove(DAT_PATH)
+    cleanup_stale_binary_state()
+    _last_run.clear()
     return {"status": "reset complete"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
