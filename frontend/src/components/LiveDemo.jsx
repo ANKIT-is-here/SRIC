@@ -244,23 +244,87 @@ class TCVMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
   lookup(tbl,col,val){return this._t.get(`${tbl}\0${col}\0${val}`);}
   label(id){const e=this._f.get(id);return e?`(${e.tbl},${e.col},'${e.val}')`:id;}}
 class TRMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
-  getOrCreate(tbl,ri){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri});}return this._t.get(k);}
+  // rowData stores the full row array so we can access employee_id for cross-table joins
+  getOrCreate(tbl,ri,rowData){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri,rowData:rowData||[]});}return this._t.get(k);}
   resolve(id){return this._f.get(id)||null;}}
 function buildIndex(tables){
   const tcv=new TCVMap(),tr=new TRMap(),idx=new Map();
   for(const{name,headers,rows}of tables)for(let ri=0;ri<rows.length;ri++){
-    const trid=tr.getOrCreate(name,ri);
+    const trid=tr.getOrCreate(name,ri,rows[ri]);
     for(let ci=0;ci<headers.length;ci++){const val=normalise(rows[ri][ci]);const tcvId=tcv.getOrCreate(name,headers[ci],val);if(!idx.has(tcvId))idx.set(tcvId,new Set());idx.get(tcvId).add(trid);}
   }
   return{tcv,tr,idx};
 }
-function rdbmsConjSearch(tcvIds,idx,tr){
+
+// Resolve a set of TR IDs to full row objects
+function resolveTrIds(trIdSet,tr){return [...trIdSet].map(id=>{const r=tr.resolve(id);return r?{trid:id,...r}:null;}).filter(Boolean);}
+
+// Cross-table conjunctive search using employee_id as the primary key.
+// Groups filters by table, finds candidate rows per table, then joins on the
+// primary key (first column named "employee id" / "employee_id" / "id").
+function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
   if(!tcvIds.length)return{hits:[],missing:[]};
   const missing=tcvIds.filter(id=>!idx.has(id));
   if(missing.length)return{hits:[],missing};
-  let result=new Set(idx.get(tcvIds[0]));
-  for(let i=1;i<tcvIds.length;i++)for(const id of result)if(!idx.get(tcvIds[i]).has(id))result.delete(id);
-  return{hits:[...result].map(trid=>{const r=tr.resolve(trid);return r?{trid,...r}:null;}).filter(Boolean),missing:[]};
+
+  // Detect whether this is a cross-table query
+  const tables=[...new Set((activeFilters||[]).map(f=>f.table).filter(Boolean))];
+  const isCrossTable=tables.length>1;
+
+  if(!isCrossTable){
+    // Same-table: plain TR-ID intersection
+    let result=new Set(idx.get(tcvIds[0]));
+    for(let i=1;i<tcvIds.length;i++){
+      const next=idx.get(tcvIds[i]);
+      for(const id of [...result])if(!next.has(id))result.delete(id);
+    }
+    return{hits:resolveTrIds(result,tr),missing:[]};
+  }
+
+  // Cross-table: for each table, intersect only the filters that belong to it,
+  // then join across tables on employee_id (primary key = first column).
+  // Build map: tableName -> Set of matching TR IDs
+  const perTableHits={};
+  for(const tbl of tables){
+    const tblFilters=(activeFilters||[]).filter(f=>f.table===tbl);
+    const tblTcvIds=tblFilters.map(f=>idx.has(tcvIds[(activeFilters||[]).indexOf(f)])?tcvIds[(activeFilters||[]).indexOf(f)]:null).filter(Boolean);
+    if(!tblTcvIds.length){perTableHits[tbl]=new Set();continue;}
+    let s=new Set(idx.get(tblTcvIds[0]));
+    for(let i=1;i<tblTcvIds.length;i++){const nx=idx.get(tblTcvIds[i]);for(const id of [...s])if(!nx.has(id))s.delete(id);}
+    perTableHits[tbl]=s;
+  }
+
+  // Extract primary-key values (employee id) from each table's matching rows
+  function getPkVal(trid,tbl){
+    const resolved=tr.resolve(trid);
+    if(!resolved)return null;
+    const td=tableData?.[tbl];
+    if(!td)return null;
+    // Primary key column: first column whose name contains "employee id" / "employee_id" / "id"
+    const pkCol=td.headers.findIndex(h=>/(employee.?id|^id$)/i.test(h));
+    if(pkCol<0)return null;
+    return normalise(resolved.rowData[pkCol]);
+  }
+
+  // Find the common primary-key values across all tables
+  const pkSets=tables.map(tbl=>new Set([...perTableHits[tbl]].map(id=>getPkVal(id,tbl)).filter(Boolean)));
+  let commonPks=pkSets[0];
+  for(let i=1;i<pkSets.length;i++)commonPks=new Set([...commonPks].filter(pk=>pkSets[i].has(pk)));
+
+  if(!commonPks.size)return{hits:[],missing:[]};
+
+  // Collect all matching rows from ALL tables whose employee_id is in the common set
+  const hits=[];
+  for(const tbl of tables){
+    for(const trid of perTableHits[tbl]){
+      const pk=getPkVal(trid,tbl);
+      if(pk&&commonPks.has(pk)){
+        const r=tr.resolve(trid);
+        if(r)hits.push({trid,...r});
+      }
+    }
+  }
+  return{hits,missing:[]};
 }
 
 // ── Explanations ───────────────────────────────────────────────────────────────
@@ -375,12 +439,17 @@ function RDBMSPanel({mode,tableData,dbIndex}){
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
-    const tcvIds=active.map(f=>dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))).filter(Boolean);
+    // Build array of (tcvId, filter) pairs — we need to keep the filter alongside the tcvId
+    // so the cross-table join knows which tcvId belongs to which table
+    const tcvPairs=active.map(f=>({f,id:dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))}));
+    const tcvIds=tcvPairs.map(p=>p.id).filter(Boolean);
+    // Re-map active filters to only those that resolved to a valid tcvId
+    const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
     const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr);
+    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
     const ms=performance.now()-t0;
-    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:td.rows[h.ri]||[]}:h;});
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:active.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
+    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
