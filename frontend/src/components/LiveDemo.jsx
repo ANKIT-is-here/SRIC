@@ -25,7 +25,9 @@ const SAMPLE_PDFS = [
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    content:`name,department,role,location\nAlice Johnson,engineering,senior engineer,remote\nBob Smith,marketing,campaign manager,new york\nCarol White,engineering,junior engineer,san francisco\nDavid Brown,sales,account executive,chicago\nEve Davis,engineering,tech lead,remote\nFrank Wilson,hr,recruiter,new york` },
+    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Alice Johnson,marketing,sales lead,chicago` },
+  { id:"emp2", name:"employee2.csv",
+    content:`employee id,name,employee father name,employee mother name,blood group\n1,Alice Johnson,John Johnson,Mary Johnson,A+\n2,Bob Smith,James Smith,Patricia Smith,O+\n3,Carol White,Charles White,Linda White,B-\n4,David Brown,Richard Brown,Barbara Brown,AB+\n5,Eve Davis,Joseph Davis,Susan Davis,O-\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-\n7,Alice Johnson,Robert Johnson,Patricia Johnson,B-` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
