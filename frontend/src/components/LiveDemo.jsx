@@ -25,9 +25,13 @@ const SAMPLE_PDFS = [
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Alice Johnson,marketing,sales lead,chicago` },
+    /* Duplicate names: Alice Johnson (IDs 1,7), Bob Smith (IDs 2,8),
+       Carol White (IDs 3,9), Eve Davis (IDs 5,10) — same name, different IDs, different depts */
+    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Alice Johnson,marketing,sales lead,chicago\n8,Bob Smith,engineering,backend developer,austin\n9,Carol White,sales,sales manager,remote\n10,Eve Davis,hr,hr manager,new york` },
   { id:"emp2", name:"employee2.csv",
-    content:`employee id,name,employee father name,employee mother name,blood group\n1,Alice Johnson,John Johnson,Mary Johnson,A+\n2,Bob Smith,James Smith,Patricia Smith,O+\n3,Carol White,Charles White,Linda White,B-\n4,David Brown,Richard Brown,Barbara Brown,AB+\n5,Eve Davis,Joseph Davis,Susan Davis,O-\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-\n7,Alice Johnson,Robert Johnson,Patricia Johnson,B-` },
+    /* Same employee IDs + names as employees.csv — employee_id is the primary key linking both tables.
+       Duplicate names show different family info proving employee_id disambiguates uniquely. */
+    content:`employee id,name,employee father name,employee mother name,blood group\n1,Alice Johnson,John Johnson,Mary Johnson,A+\n2,Bob Smith,James Smith,Patricia Smith,O+\n3,Carol White,Charles White,Linda White,B-\n4,David Brown,Richard Brown,Barbara Brown,AB+\n5,Eve Davis,Joseph Davis,Susan Davis,O-\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-\n7,Alice Johnson,Robert Johnson,Patricia Johnson,B-\n8,Bob Smith,William Smith,Elizabeth Smith,A+\n9,Carol White,George White,Jennifer White,O+\n10,Eve Davis,Michael Davis,Karen Davis,AB-` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
