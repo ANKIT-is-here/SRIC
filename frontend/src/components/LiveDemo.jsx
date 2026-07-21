@@ -25,13 +25,13 @@ const SAMPLE_PDFS = [
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    /* Duplicate names: Alice Johnson (IDs 1,7), Bob Smith (IDs 2,8),
-       Carol White (IDs 3,9), Eve Davis (IDs 5,10) — same name, different IDs, different depts */
-    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Alice Johnson,marketing,sales lead,chicago\n8,Bob Smith,engineering,backend developer,austin\n9,Carol White,sales,sales manager,remote\n10,Eve Davis,hr,hr manager,new york` },
+    /* Primary key: employee_id. Same employee_id + name as employee2.csv so tables can be joined.
+       Rest of fields (dept, role, location) are unique to this table. */
+    content:`employee id,name,department,role,location\n1,Alice Johnson,engineering,senior engineer,remote\n2,Bob Smith,marketing,campaign manager,new york\n3,Carol White,engineering,junior engineer,san francisco\n4,David Brown,sales,account executive,chicago\n5,Eve Davis,engineering,tech lead,remote\n6,Frank Wilson,hr,recruiter,new york\n7,Grace Lee,finance,financial analyst,austin\n8,Henry Clark,engineering,backend developer,remote\n9,Iris Moore,marketing,brand manager,chicago\n10,Jack Turner,sales,regional manager,new york` },
   { id:"emp2", name:"employee2.csv",
-    /* Same employee IDs + names as employees.csv — employee_id is the primary key linking both tables.
-       Duplicate names show different family info proving employee_id disambiguates uniquely. */
-    content:`employee id,name,employee father name,employee mother name,blood group\n1,Alice Johnson,John Johnson,Mary Johnson,A+\n2,Bob Smith,James Smith,Patricia Smith,O+\n3,Carol White,Charles White,Linda White,B-\n4,David Brown,Richard Brown,Barbara Brown,AB+\n5,Eve Davis,Joseph Davis,Susan Davis,O-\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-\n7,Alice Johnson,Robert Johnson,Patricia Johnson,B-\n8,Bob Smith,William Smith,Elizabeth Smith,A+\n9,Carol White,George White,Jennifer White,O+\n10,Eve Davis,Michael Davis,Karen Davis,AB-` },
+    /* Primary key: employee_id. Same employee_id + name as employees.csv.
+       Rest of fields (father name, mother name, blood group, address) are unique to this table. */
+    content:`employee id,name,father name,mother name,blood group,address\n1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York\n2,Bob Smith,James Smith,Patricia Smith,O+,45 Oak Avenue Boston\n3,Carol White,Charles White,Linda White,B-,8 Pine Road San Francisco\n4,David Brown,Richard Brown,Barbara Brown,AB+,99 Maple Lane Chicago\n5,Eve Davis,Joseph Davis,Susan Davis,O-,23 Cedar Blvd Austin\n6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-,7 Birch Court Seattle\n7,Grace Lee,Daniel Lee,Helen Lee,B+,34 Walnut Street Los Angeles\n8,Henry Clark,Steven Clark,Dorothy Clark,AB+,56 Spruce Ave Denver\n9,Iris Moore,Kevin Moore,Nancy Moore,O+,18 Ash Street Miami\n10,Jack Turner,Brian Turner,Sandra Turner,A+,2 Willow Way Houston` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
