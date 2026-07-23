@@ -36,11 +36,9 @@ ID_TO_DOC_PATH  = os.path.join(DATA_DIR, "id_to_doc.csv")
 INDEX_PATH      = os.path.join(DATA_DIR, "inverted_index.csv")
 DAT_PATH        = "db6k.dat"
 
-# odxt_cli.cpp dispatches setup vs. single-query search by argc (no args ->
-# setup, args present -> search over those word_ids), so both point at the
-# same compiled binary rather than two separate ones like ntru-oqxt did.
-SETUP_BINARY  = "./odxt-cli"
-SEARCH_BINARY = "./odxt-cli"
+# SETUP_BINARY and SEARCH_BINARY point to the compiled ntru-oqxt binaries.
+SETUP_BINARY  = "./ntru-oqxt-setup"
+SEARCH_BINARY = "./ntru-oqxt-search"
 
 # Keeps the full, untruncated result of the most recent binary invocation so
 # it can be inspected via GET /debug/last-run even if you can't easily tail

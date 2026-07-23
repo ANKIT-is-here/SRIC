@@ -3,17 +3,17 @@
 int BloomFilter_Init(unsigned char** &BF)
 {
     BF = new unsigned char* [N_HASH];
-    for(unsigned int k=0;k<N_HASH;++k){
+    for(unsigned int k = 0; k < N_HASH; ++k){
         BF[k] = new unsigned char [MAX_BF_BIN_SIZE];
-        ::memset(BF[k],0x00,MAX_BF_BIN_SIZE);
+        std::memset(BF[k], 0x00, MAX_BF_BIN_SIZE);
     }
     return 0;
 }
 
 int BloomFilter_Set(unsigned char** &BF, unsigned int* indices)
 {
-    // indices[k] <= 2048
-    for(unsigned int k=0;k<N_HASH;++k){
+    // indices[k] <= MAX_BF_BIN_SIZE
+    for(unsigned int k = 0; k < N_HASH; ++k){
         BF[k][indices[k]] = 0x01;
     }
     return 0;
@@ -21,7 +21,7 @@ int BloomFilter_Set(unsigned char** &BF, unsigned int* indices)
 
 int BloomFilter_Set_N(unsigned char** &BF, unsigned int** indices, int n_idx)
 {
-    for(unsigned int k=0;k<N_HASH;++k){
+    for(unsigned int k = 0; k < N_HASH; ++k){
         BF[k][indices[k][n_idx]] = 0x01;
     }
     return 0;
@@ -30,8 +30,8 @@ int BloomFilter_Set_N(unsigned char** &BF, unsigned int** indices, int n_idx)
 int BloomFilter_Match(unsigned char** &BF, unsigned int* indices, bool* is_present)
 {
     bool is_in_part = true;
-    for(size_t k=0;k<N_HASH;++k){
-        is_in_part &= ((BF[k])[indices[k]] == 0x01);
+    for(unsigned int k = 0; k < N_HASH; ++k){
+        is_in_part &= (BF[k][indices[k]] == 0x01);
     }
     *is_present = is_in_part;
     return 0;
@@ -40,9 +40,9 @@ int BloomFilter_Match(unsigned char** &BF, unsigned int* indices, bool* is_prese
 int BloomFilter_Match_N(unsigned char** &BF, unsigned int** indices, unsigned int n_words, bool* is_present)
 {
     bool is_in_part = true;
-    for(size_t k=0;k<N_HASH;++k){
-        for(size_t l=0;l<n_words;++l){
-            is_in_part &= ((BF[k])[indices[k][l]] == 0x01);
+    for(unsigned int k = 0; k < N_HASH; ++k){
+        for(unsigned int l = 0; l < n_words; ++l){
+            is_in_part &= (BF[k][indices[k][l]] == 0x01);
         }
     }
     *is_present = is_in_part;
@@ -51,21 +51,30 @@ int BloomFilter_Match_N(unsigned char** &BF, unsigned int** indices, unsigned in
 
 int BloomFilter_Clean(unsigned char** &BF)
 {
-    for(size_t k=0;k<N_HASH;++k){
+    for(unsigned int k = 0; k < N_HASH; ++k){
         delete [] BF[k];
+        BF[k] = nullptr;
     }
     delete [] BF;
+    BF = nullptr;
     return 0;
 }
 
 int BloomFilter_WriteBFtoFile(std::string bloomfilter_file, unsigned char** &BF)
 {
     std::ofstream outputfile;
-    outputfile.open(bloomfilter_file,std::ios_base::out);
+    outputfile.open(bloomfilter_file, std::ios_base::out);
+    if(!outputfile.is_open()){
+        return -1;
+    }
 
-    for(unsigned int i=0;i<N_HASH;++i){
-        for(unsigned int j=0;j<MAX_BF_BIN_SIZE;++j){
-            outputfile << std::hex << std::setw(2) << std::setfill('0') << (static_cast<int>(BF[i][j]) & 0xFF) << '\n';
+    for(unsigned int i = 0; i < N_HASH; ++i){
+        for(unsigned int j = 0; j < MAX_BF_BIN_SIZE; ++j){
+            outputfile << std::hex
+                       << std::setw(2)
+                       << std::setfill('0')
+                       << (static_cast<int>(BF[i][j]) & 0xFF)
+                       << '\n';
         }
     }
 
@@ -76,51 +85,33 @@ int BloomFilter_WriteBFtoFile(std::string bloomfilter_file, unsigned char** &BF)
 int BloomFilter_ReadBFfromFile(std::string bloomfilter_file, unsigned char** &BF)
 {
     std::ifstream inputfile;
-    inputfile.open(bloomfilter_file,std::ios_base::in);
+    inputfile.open(bloomfilter_file, std::ios_base::in);
+    if(!inputfile.is_open()){
+        return -1;
+    }
 
     std::string fline;
-    char temp[2];
-    const char *tstr;
+    // temp needs 2 hex digits + null terminator — must be size 3
+    char temp[3] = {'\0', '\0', '\0'};
     unsigned int n_hash = 0;
     unsigned int bf_idx = 0;
 
-    while(std::getline(inputfile,fline) && (n_hash < N_HASH)){
-        tstr = fline.data();
-        temp[0] = tstr[0];
-        temp[1] = tstr[1];
-        BF[n_hash][bf_idx] = std::strtoul(temp,nullptr,16) & 0xFF;
+    while(std::getline(inputfile, fline) && (n_hash < N_HASH)){
+        if(fline.size() < 2){
+            continue; // skip empty or malformed lines
+        }
+        temp[0] = fline[0];
+        temp[1] = fline[1];
+        temp[2] = '\0'; // ensure null-terminated for strtoul
+        BF[n_hash][bf_idx] = static_cast<unsigned char>(std::strtoul(temp, nullptr, 16) & 0xFFU);
         fline.clear();
-        bf_idx++;
+        ++bf_idx;
         if(bf_idx == MAX_BF_BIN_SIZE){
-            n_hash++;
+            ++n_hash;
             bf_idx = 0;
         }
     }
 
     inputfile.close();
-
-	return 0;
+    return 0;
 }
-
-
-// int Trapdoor_Set(int** &T, int** r1, int i_offset, int j_offset)
-// {
-//     for(unsigned int i=0;i<mb_l;++i){
-//         for(int j=0; j<nk_l; j++)
-//         {
-//             T[i+i_offset][j+j_offset] = r1[i][j];
-//         }
-//     }
-//     return 0;
-// }
-
-// int ZW_Set(int** &ZW, int** anew, int i_offset, int j_offset)
-// {
-//     for(unsigned int i=0;i<N_l;++i){
-//         for(int j=0; j<m_l; j++)
-//         {
-//             ZW[i+i_offset][j+j_offset] = anew[i][j];
-//         }
-//     }
-//     return 0;
-// }
