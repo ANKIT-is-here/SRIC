@@ -157,23 +157,34 @@ function rowsToCSV(headers,rows){
 //   Nmatch: 0
 //   Search time = 76370 micro-seconds
 
-const getBackendUrl = () => {
+// Each search type's backend is its own standalone repo/process, so each
+// gets its own port. single/and/rdbms all still run on :8000 exactly as
+// before - only "or" (disjunction, odxt-cli) is new. Adjust ports here if
+// your actual deployment differs; nothing else in the file needs to change.
+const BACKEND_PORTS = { single: 8000, and: 8000, rdbms: 8000, or: 8001 };
+// single/and/rdbms all resolve to the same physical backend today, so they
+// share one status/index cache under this key; "or" gets its own.
+const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", rdbms: "primary", or: "or" };
+
+const getBackendUrl = (port) => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   // Handle remote proxies/Codespaces (e.g., ports 3000/8000 mapped to subdomains)
   if (hostname.includes("-3000.")) {
-    return `${protocol}//${hostname.replace("-3000.", "-8000.")}`;
+    return `${protocol}//${hostname.replace("-3000.", `-${port}.`)}`;
   }
   if (hostname.includes("3000-")) {
-    return `${protocol}//${hostname.replace("3000-", "8000-")}`;
+    return `${protocol}//${hostname.replace("3000-", `${port}-`)}`;
   }
-  return `http://${hostname}:8000`;
+  return `http://${hostname}:${port}`;
 };
-const BACKEND = getBackendUrl();
 
-async function checkBackend() {
+// key -> backend base URL, e.g. {primary: "http://host:8000", or: "http://host:8001"}
+const BACKENDS = { primary: getBackendUrl(BACKEND_PORTS.single), or: getBackendUrl(BACKEND_PORTS.or) };
+
+async function checkBackend(backendUrl) {
   try {
-    const r = await fetch(`${BACKEND}/stats`, {signal: AbortSignal.timeout(2000)});
+    const r = await fetch(`${backendUrl}/stats`, {signal: AbortSignal.timeout(2000)});
     return r.ok;
   } catch { return false; }
 }
@@ -181,9 +192,9 @@ async function checkBackend() {
 // Download word_to_id.csv from backend and parse into a {word: hexId} map.
 // Caching this client-side means SSE searches can resolve word_ids locally
 // without revealing plaintext keywords to the server during search time.
-async function fetchWordToId() {
+async function fetchWordToId(backendUrl) {
   try {
-    const res = await fetch(`${BACKEND}/download/word_to_id.csv`);
+    const res = await fetch(`${backendUrl}/download/word_to_id.csv`);
     if (!res.ok) return {};
     const text = await res.text();
     const map = {};
@@ -200,7 +211,7 @@ async function fetchWordToId() {
 
 // Upload a single file to backend. fileOrContent can be a File object (binary
 // preserved, PyPDF2 extracts text server-side) or a string (for sample PDFs).
-async function uploadOneFile(name, fileOrContent) {
+async function uploadOneFile(backendUrl, name, fileOrContent) {
   const fd = new FormData();
   if (fileOrContent instanceof File) {
     fd.append("files", fileOrContent, name);
@@ -208,7 +219,7 @@ async function uploadOneFile(name, fileOrContent) {
     // text string (sample PDFs) - backend falls back to text decode if PyPDF2 fails
     fd.append("files", new Blob([fileOrContent], {type:"text/plain"}), name);
   }
-  const res = await fetch(`${BACKEND}/upload`, {method:"POST", body:fd});
+  const res = await fetch(`${backendUrl}/upload`, {method:"POST", body:fd});
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `upload failed: ${res.status}`);
@@ -216,12 +227,29 @@ async function uploadOneFile(name, fileOrContent) {
   return res.json();
 }
 
+// Fan a single file out to every backend in parallel, since each backend is
+// an independent process with its own index - a doc uploaded while on the
+// "and" tab still needs to reach the "or" backend so switching tabs later
+// doesn't require re-uploading everything.
+async function uploadToAllBackends(name, fileOrContent) {
+  const entries = Object.entries(BACKENDS);
+  const settled = await Promise.allSettled(
+    entries.map(([, url]) => uploadOneFile(url, name, fileOrContent))
+  );
+  const byKey = {};
+  entries.forEach(([key], i) => {
+    const r = settled[i];
+    byKey[key] = r.status === "fulfilled" ? {ok:true, data:r.value} : {ok:false, error:r.reason?.message||String(r.reason)};
+  });
+  return byKey;
+}
+
 // SSE search:
 // 1. Resolve word_ids from the LOCAL wordToId cache (no keyword sent to server)
 // 2. Call /conjunctive-search with those IDs to run ntru-oqxt-search binary
 // 3. Parse binary stdout for real timing
 // 4. Compute matched doc names from JS index (client-side knowledge, for display)
-async function sseSearch(terms, wordToId, indexedKws) {
+async function sseSearch(backendUrl, qtype, terms, wordToId, indexedKws) {
   const resolved = terms.map(t => ({
     word:   t.toLowerCase().trim(),
     wordId: wordToId[t.toLowerCase().trim()] || null,
@@ -237,13 +265,14 @@ async function sseSearch(terms, wordToId, indexedKws) {
   const wordIds = found.map(r => r.wordId);
   const words   = found.map(r => r.word);
 
-  // Intersection from JS index for display (client knows this in plaintext)
+  // Client-side preview of the expected result set (client knows this in
+  // plaintext): intersection for and/single, union for or.
   const lists = words.map(w => indexedKws[w] || []);
-  const matchedDocNames = lists.length
-    ? lists.reduce((a,b) => a.filter(d => b.includes(d)))
-    : [];
+  const matchedDocNames = !lists.length ? []
+    : qtype === "or" ? [...new Set(lists.flat())]
+    : lists.reduce((a,b) => a.filter(d => b.includes(d)));
 
-  const conjRes = await fetch(`${BACKEND}/conjunctive-search`, {
+  const conjRes = await fetch(`${backendUrl}/conjunctive-search`, {
     method:  "POST",
     headers: {"Content-Type":"application/json"},
     body:    JSON.stringify({word_ids: wordIds, words}),
@@ -284,6 +313,9 @@ function regularSearch(qtype, terms, indexedKws) {
   let docs = [];
   if (qtype === "single") {
     docs = indexedKws[terms[0].toLowerCase()] || [];
+  } else if (qtype === "or") {
+    const lists = terms.map(t => indexedKws[t.toLowerCase()] || []);
+    docs = [...new Set(lists.flat())];
   } else {
     const lists = terms.map(t => indexedKws[t.toLowerCase()] || []);
     docs = lists.length ? lists.reduce((a,b) => a.filter(d => b.includes(d))) : [];
@@ -387,9 +419,11 @@ function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
 const EXP = {
   "regular-single": "Looks up every document tagged with this keyword in a plain plaintext index. No encryption. Timing is real JS set lookup time.",
   "regular-and":    "Intersects posting lists for each keyword. Only documents present in every list are returned. Timing is real JS intersection time.",
+  "regular-or":     "Unions posting lists for each keyword. Any document present in at least one list is returned. Timing is real JS union time.",
   "regular-rdbms":  "Each CSV file becomes a table. The index uses the same TCV and TR ID structure as inverted_index.py. Filters follow the /search endpoint shape. Timing is real JS set intersection time.",
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
+  "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
   "sse-rdbms":      "Same CSV conjunctive search as Regular RDBMS, shown as a direct comparison. RDBMS finds rows in plaintext. SSE does the equivalent search over encrypted data.",
 };
 
@@ -609,9 +643,9 @@ function RDBMSPanel({mode,tableData,dbIndex}){
 }
 
 // ── Search console ──────────────────────────────────────────────────────────────
-const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["rdbms","RDBMS Query"]];
+const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["or","Disjunction (OR)"],["rdbms","RDBMS Query"]];
 
-function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype}){
+function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype,backendUrl}){
   const [mode,setMode]     = useState("regular");
   const [input,setInput]   = useState("");
   const [result,setResult] = useState(null);
@@ -635,7 +669,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
         setSearchCountdown(prev => (prev > 1 ? prev - 1 : 1));
       }, 1000);
       try {
-        const r = await sseSearch(t, wordToId, indexedKws);
+        const r = await sseSearch(backendUrl, qtype, t, wordToId, indexedKws);
         setResult({type:"sse",qtype,...r,terms:t});
       } catch(e) {
         setResult({type:"sse",qtype,ok:false,error:e.message,terms:t});
@@ -648,6 +682,9 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
 
   const placeholder = qtype==="single" ? "e.g. revenue" : "e.g. revenue, profit";
   const hint = qtype==="single" ? "One keyword. Any word from the uploaded documents works."
+    : qtype==="or" ? (mode==="sse"
+        ? "Two or more keywords separated by commas. Each is bucketized and searched independently, then results are unioned."
+        : "Two or more keywords separated by commas. Returns documents containing any of them.")
     : mode==="sse" ? "Two or more keywords separated by commas. The first is the s-term for TSet_Retrieve."
     : "Two or more keywords separated by commas. Returns documents containing all of them.";
 
@@ -786,18 +823,23 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
                     {result.wordIds?.length > 0 && (
                       <>
                         <div style={{fontSize:11,color:"#777",marginBottom:6}}>
-                          Word IDs sent to ntru-oqxt-search. Server never sees plaintext keywords:
+                          Word IDs sent to {result.qtype==="or" ? "odxt-cli" : "ntru-oqxt-search"}. Server never sees plaintext keywords:
                         </div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:result.qtype==="and"&&result.wordIds.length>1?10:0}}>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:result.wordIds.length>1?10:0}}>
                           {result.wordIds.map((id,i)=>(
-                            <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:i===0?"#ffd208":"#a78bfa",background:i===0?"#ffd20810":"#a78bfa10",border:`1px solid ${i===0?"#ffd20833":"#a78bfa33"}`,borderRadius:4,padding:"3px 8px"}}>
-                              {id}<span style={{opacity:0.5,marginLeft:4,fontSize:9}}>{i===0?"(s-term)":"(x-term)"}</span>
+                            <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:result.qtype==="and"&&i===0?"#ffd208":result.qtype==="and"?"#a78bfa":"#ffd208",background:result.qtype==="and"&&i===0?"#ffd20810":result.qtype==="and"?"#a78bfa10":"#ffd20810",border:`1px solid ${result.qtype==="and"&&i===0?"#ffd20833":result.qtype==="and"?"#a78bfa33":"#ffd20833"}`,borderRadius:4,padding:"3px 8px"}}>
+                              {id}{result.qtype==="and"&&<span style={{opacity:0.5,marginLeft:4,fontSize:9}}>{i===0?"(s-term)":"(x-term)"}</span>}
                             </span>
                           ))}
                         </div>
                         {result.qtype==="and"&&result.wordIds.length>1&&(
                           <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
                             s-term TSet chain retrieved first. XTag computed for each x-term against each candidate, then checked against the bloom filter.
+                          </div>
+                        )}
+                        {result.qtype==="or"&&result.wordIds.length>1&&(
+                          <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
+                            Each keyword ID is bucketized and searched independently against its own encrypted postings; the final result is the union across all of them.
                           </div>
                         )}
                       </>
@@ -817,11 +859,14 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
 export default function LiveDemo(){
   const [vault,setVault]                   = useState([]);
   const [indexedKws,setIndexedKws]         = useState({});
-  const [wordToId,setWordToId]             = useState({});  // word → hex_id, cached from backend
+  // Keyed by backend key ("primary" for single/and/rdbms, "or" for
+  // disjunction) since each is an independent backend process/repo with its
+  // own word_to_id assignment - ids are NOT interchangeable across backends.
+  const [wordToIdByKey,setWordToIdByKey]       = useState({primary:{}, or:{}});
   const [tableData,setTableData]           = useState({});
   const [dbIndex,setDbIndex]               = useState(null);
-  const [backendStatus,setBackendStatus]   = useState("checking");
-  const [uploadStatus,setUploadStatus]     = useState("idle");
+  const [backendStatusByKey,setBackendStatusByKey] = useState({primary:"checking", or:"checking"});
+  const [uploadStatusByKey,setUploadStatusByKey]   = useState({primary:"idle", or:"idle"});
   const [uploadCountdown,setUploadCountdown] = useState(15);
   const [dropActive,setDropActive]         = useState(false);
   const [libOpen,setLibOpen]               = useState(true);
@@ -829,15 +874,21 @@ export default function LiveDemo(){
   const fileRef    = useRef();
   const isRdbms    = qtype === "rdbms";
   const vaultMap   = Object.fromEntries(vault.map(d => [d.name, d]));
+  const backendKey     = BACKEND_KEY_FOR_QTYPE[qtype] || "primary";
+  const backendStatus  = backendStatusByKey[backendKey];
+  const uploadStatus   = uploadStatusByKey[backendKey];
+  const wordToId        = wordToIdByKey[backendKey];
 
   useEffect(()=>{
-    checkBackend().then(ok => setBackendStatus(ok ? "online" : "offline"));
+    Object.entries(BACKENDS).forEach(([key, url]) => {
+      checkBackend(url).then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
+    });
   },[]);
 
-  // Refresh the wordToId cache from backend (called after every successful upload)
-  async function refreshWordToId() {
-    const map = await fetchWordToId();
-    if (Object.keys(map).length) setWordToId(map);
+  // Refresh the wordToId cache for one backend (called after every upload to that backend)
+  async function refreshWordToId(key) {
+    const map = await fetchWordToId(BACKENDS[key]);
+    if (Object.keys(map).length) setWordToIdByKey(prev => ({...prev, [key]: map}));
   }
 
   // Add doc to vault and JS keyword index
@@ -855,15 +906,19 @@ export default function LiveDemo(){
   // keywords from the response, then refreshes the local wordToId cache.
   // fileOrContent: File object (real PDF/TXT from disk) or string (sample content).
   async function uploadAndCommit(name, fileOrContent, fallbackKeywords, storedContent) {
-    setUploadStatus("uploading");
+    setUploadStatusByKey(prev => Object.fromEntries(Object.keys(prev).map(k => [k, "uploading"])));
     setUploadCountdown(15);
     const interval = setInterval(() => {
       setUploadCountdown(prev => (prev > 1 ? prev - 1 : 1));
     }, 1000);
     try {
-      const data = await uploadOneFile(name, fileOrContent);
-      const proc = data.processed?.[0];
-      const kws  = proc ? filterDisplayKeywords(proc.keywords) : (fallbackKeywords || []);
+      // Fan out to every backend - each is an independent process/index, so
+      // a doc uploaded on one tab needs to land in all of them for the
+      // other tabs to find it later without a re-upload.
+      const results = await uploadToAllBackends(name, fileOrContent);
+      const primary  = results.primary;
+      const proc     = primary?.ok ? primary.data.processed?.[0] : null;
+      const kws      = proc ? filterDisplayKeywords(proc.keywords) : (fallbackKeywords || []);
       commitDoc({
         id: name, 
         name, 
@@ -871,8 +926,12 @@ export default function LiveDemo(){
         content: storedContent || null,
         rawFile: fileOrContent instanceof File ? fileOrContent : null
       });
-      await refreshWordToId();
-      setUploadStatus("done");
+      await Promise.all(Object.keys(results).map(refreshWordToId));
+      setUploadStatusByKey(
+        Object.fromEntries(Object.entries(results).map(([k,r]) => [k, r.ok ? "done" : "error"]))
+      );
+      const anyFailed = Object.values(results).some(r => !r.ok);
+      if (anyFailed) console.error("upload error on some backends:", results);
     } catch(e) {
       console.error("upload error:", e);
       // Fall back to adding with provided keywords so UI still works offline
@@ -883,7 +942,7 @@ export default function LiveDemo(){
         content: storedContent || null,
         rawFile: fileOrContent instanceof File ? fileOrContent : null
       });
-      setUploadStatus("error");
+      setUploadStatusByKey(prev => Object.fromEntries(Object.keys(prev).map(k => [k, "error"])));
     } finally {
       clearInterval(interval);
     }
@@ -1116,7 +1175,7 @@ export default function LiveDemo(){
           vault={vault} indexedKws={indexedKws} vaultMap={vaultMap}
           tableData={tableData} dbIndex={dbIndex}
           backendStatus={backendStatus} uploadStatus={uploadStatus}
-          wordToId={wordToId}
+          wordToId={wordToId} backendUrl={BACKENDS[backendKey]}
           qtype={qtype} setQtype={setQtype}
         />
       </div>

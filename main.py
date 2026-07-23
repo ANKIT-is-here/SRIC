@@ -36,8 +36,11 @@ ID_TO_DOC_PATH  = os.path.join(DATA_DIR, "id_to_doc.csv")
 INDEX_PATH      = os.path.join(DATA_DIR, "inverted_index.csv")
 DAT_PATH        = "db6k.dat"
 
-SETUP_BINARY  = "./ntru-oqxt-setup"
-SEARCH_BINARY = "./ntru-oqxt-search"
+# odxt_cli.cpp dispatches setup vs. single-query search by argc (no args ->
+# setup, args present -> search over those word_ids), so both point at the
+# same compiled binary rather than two separate ones like ntru-oqxt did.
+SETUP_BINARY  = "./odxt-cli"
+SEARCH_BINARY = "./odxt-cli"
 
 # Keeps the full, untruncated result of the most recent binary invocation so
 # it can be inspected via GET /debug/last-run even if you can't easily tail
@@ -124,27 +127,36 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
 
 def cleanup_stale_binary_state():
     """
-    Remove artifacts that the setup/search binaries may have written on a
-    previous, crashed run (TSet DBs, lock files, temp state, etc). A common
-    cause of a native SSE-setup crashing on a fresh run is that it's reading
-    half-written state left behind by an earlier failed run. We only know
-    about db6k.dat for certain (main.py writes it), but we also sweep common
-    patterns the binary itself might drop next to it.
+    Unlike the old ntru-oqxt binaries, odxt-cli deliberately persists state
+    ACROSS process invocations (update_count.csv, odxt_config.txt, plus
+    test_vectors/results scratch dirs) — that's how a separate search
+    process, called later, knows about the index a setup process built
+    earlier. So on every /upload we wipe exactly those known files to force
+    a full rebuild, rather than sweeping unknown glob patterns.
+
+    TODO: if repeated upload-resets ever behave oddly (stale Redis keys from
+    a previous demo session bleeding into a new one), add a
+    `redis-cli FLUSHALL` here too — odxt_cli.cpp's setup path does not do
+    this itself.
     """
-    patterns = ["*.tset", "*.db", "*.lock", "*.tmp", "TSet*", "tset*"]
     removed = []
-    for pattern in patterns:
-        for path in glob.glob(os.path.join(BASE_DIR, pattern)):
-            # never touch the source db6k.dat we just wrote, or the binaries themselves
-            if os.path.basename(path) in (os.path.basename(DAT_PATH),) or path.endswith(("-setup", "-search")):
-                continue
+    for fname in ["update_count.csv", "odxt_config.txt"]:
+        path = os.path.join(BASE_DIR, fname)
+        if os.path.exists(path):
             try:
                 os.remove(path)
-                removed.append(os.path.basename(path))
+                removed.append(fname)
+            except OSError as e:
+                log.warning("Could not remove stale artifact %s: %s", path, e)
+    for scratch in ["test_vectors/live", "results/live"]:
+        for path in glob.glob(os.path.join(BASE_DIR, scratch, "*")):
+            try:
+                os.remove(path)
+                removed.append(os.path.relpath(path, BASE_DIR))
             except OSError as e:
                 log.warning("Could not remove stale artifact %s: %s", path, e)
     if removed:
-        log.info("Cleaned up stale binary state before run: %s", removed)
+        log.info("Cleaned up stale ODXT state before run: %s", removed)
 
 
 def run_binary(binary: str, args: List[str], timeout: int = 60) -> dict:
@@ -174,10 +186,10 @@ def run_binary(binary: str, args: List[str], timeout: int = 60) -> dict:
             log.error(
                 "Binary '%s' exited non-zero (%s). This is a crash/failure inside "
                 "the compiled binary itself, not in main.py — the stderr above "
-                "(if any) is the only clue we have. Common causes: fixed-size "
-                "internal buffers being exceeded, missing/corrupt state files "
-                "from a previous run, or a required dependency (e.g. Redis) "
-                "not running.",
+                "(if any) is the only clue we have. Common ODXT-specific causes: "
+                "Redis not running, search invoked before any successful setup "
+                "(missing odxt_config.txt / update_count.csv), or a bucket_size / "
+                "isOptimized mismatch between the setup and search runs.",
                 binary, result.returncode,
             )
 
@@ -257,7 +269,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     setup_error  = None
     try:
         cleanup_stale_binary_state()
-        setup_result = run_binary(SETUP_BINARY, [], timeout=120)
+        setup_result = run_binary(SETUP_BINARY, [], timeout=180)
     except HTTPException as e:
         setup_error = e.detail
         log.error("Setup binary raised: %s", e.detail)
@@ -276,9 +288,9 @@ async def upload_files(files: List[UploadFile] = File(...)):
 
 @app.get("/debug/last-run")
 def debug_last_run():
-    """Full, untruncated stdout/stderr/exit code of the most recent
-    ntru-oqxt-setup or ntru-oqxt-search invocation. Use this to see the
-    real crash reason — the frontend banner only shows the first 200 chars."""
+    """Full, untruncated stdout/stderr/exit code of the most recent odxt-cli
+    invocation (setup or search). Use this to see the real crash reason —
+    the frontend banner only shows the first 200 chars."""
     if not _last_run:
         return {"message": "No binary has been run yet."}
     return _last_run
