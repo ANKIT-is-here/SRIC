@@ -18,11 +18,76 @@ const SAMPLE_PDFS = [
   { id:"res",  name:"Research_Paper.pdf",
     keywords:["abstract","hypothesis","methodology","results","analysis","citation","dataset","experiment"],
     content:`Research Paper\n\nAbstract novel methodology for dataset analysis\nHypothesis confirmed at p less than 0.05\nMethodology stratified sampling\nResults variance within acceptable bounds\nAnalysis outliers removed IQR filtering\nCitation count 42\nDataset partitioned into stratified samples\nExperiment peer review accepted minor revisions\n` },
+  { id:"comb", name:"combined.pdf",
+    keywords:["revenue","profit","ebitda","quarterly","forecast","audit","balance","equity","encryption","cipher","block","keygen","nonce","padding","ivector","derivation","patient","diagnosis","medication","dosage","glucose","pressure","allergy","treatment","milestone","sprint","backlog","stakeholder","deliverable","roadmap","budget","risks","abstract","hypothesis","methodology","results","analysis","citation","dataset","experiment"],
+    content:`Combined Document\n\nQ3 Financial Report\nRevenue 4.2M\nEBITDA margin 18.3\nNet profit 760K\nForecast revised upward for Q4\nAudit notes No material findings\nBalance sheet remains stable\nEquity position unchanged\n\nEncryption RFC Draft\nCipher AES-256 in CBC mode\nKey derivation PBKDF2 with HMAC-SHA1\nNonce generation CSPRNG 128-bit\nPadding scheme PKCS7\nIV randomly generated per session\nBlock size 128 bits\nKey size 256 bits\n\nMedical Record\nPatient ID 00482-B\nDiagnosis Type 2 Diabetes\nMedication Metformin 500mg\nDosage twice daily with meals\nBlood glucose 126 mg per dL\nBlood pressure 128 over 82 mmHg\nAllergy Penicillin rash\nTreatment dietary adjustment\n\nProject Phoenix Sprint 4\nMilestone M4 Integration complete\nSprint velocity 34 points\nBacklog 14 open 3 blocked\nStakeholder sign-off pending\nDeliverable on track\nRoadmap Phase 2 start Week 14\nBudget utilisation 67 percent\nRisks third-party API delay medium\n\nResearch Paper\nAbstract novel methodology for dataset analysis\nHypothesis confirmed at p less than 0.05\nMethodology stratified sampling\nResults variance within acceptable bounds\nAnalysis outliers removed IQR filtering\nCitation count 42\nDataset partitioned into stratified samples\nExperiment peer review accepted minor revisions\n` },
 ];
 
 const SAMPLE_CSVS = [
   { id:"emp", name:"employees.csv",
-    content:`name,department,role,location\nAlice Johnson,engineering,senior engineer,remote\nBob Smith,marketing,campaign manager,new york\nCarol White,engineering,junior engineer,san francisco\nDavid Brown,sales,account executive,chicago\nEve Davis,engineering,tech lead,remote\nFrank Wilson,hr,recruiter,new york` },
+    content:`employee id,name,department,role,location
+1,Alice Johnson,engineering,senior engineer,remote
+2,Bob Smith,engineering,senior engineer,remote
+3,Carol White,engineering,junior engineer,san francisco
+4,David Brown,engineering,junior engineer,new york
+5,Eve Davis,engineering,tech lead,remote
+6,Frank Wilson,engineering,tech lead,austin
+7,Grace Lee,engineering,backend developer,remote
+8,Henry Clark,engineering,backend developer,chicago
+9,Iris Moore,engineering,frontend developer,san francisco
+10,Jack Turner,engineering,frontend developer,remote
+11,Alice Johnson,marketing,campaign manager,new york
+12,Bob Smith,marketing,campaign manager,chicago
+13,Carol White,marketing,content strategist,remote
+14,David Brown,marketing,brand manager,new york
+15,Eve Davis,marketing,growth hacker,chicago
+16,Frank Wilson,sales,account executive,chicago
+17,Grace Lee,sales,account executive,new york
+18,Henry Clark,sales,regional manager,new york
+19,Iris Moore,sales,sales analyst,remote
+20,Jack Turner,sales,enterprise account manager,chicago
+21,Alice Johnson,hr,recruiter,new york
+22,Bob Smith,hr,hr business partner,austin
+23,Carol White,hr,recruiter,remote
+24,David Brown,finance,financial analyst,austin
+25,Eve Davis,finance,financial controller,new york
+26,Frank Wilson,engineering,devops engineer,remote
+27,Grace Lee,engineering,ml engineer,remote
+28,Henry Clark,engineering,security engineer,chicago
+29,Iris Moore,engineering,senior engineer,chicago
+30,Jack Turner,engineering,junior engineer,remote` },
+  { id:"emp2", name:"employee2.csv",
+    content:`employee id,name,father name,mother name,blood group,address
+1,Alice Johnson,John Johnson,Mary Johnson,A+,12 Elm Street New York
+2,Bob Smith,James Smith,Patricia Smith,O+,45 Oak Avenue Boston
+3,Carol White,Charles White,Linda White,B-,8 Pine Road San Francisco
+4,David Brown,Richard Brown,Barbara Brown,AB+,99 Maple Lane Chicago
+5,Eve Davis,Joseph Davis,Susan Davis,O-,23 Cedar Blvd Austin
+6,Frank Wilson,Thomas Wilson,Margaret Wilson,A-,7 Birch Court Seattle
+7,Grace Lee,Daniel Lee,Helen Lee,B+,34 Walnut Street Los Angeles
+8,Henry Clark,Steven Clark,Dorothy Clark,AB+,56 Spruce Ave Denver
+9,Iris Moore,Kevin Moore,Nancy Moore,O+,18 Ash Street Miami
+10,Jack Turner,Brian Turner,Sandra Turner,A+,2 Willow Way Houston
+11,Alice Johnson,Robert Johnson,Patricia Johnson,B-,88 Oak Street Chicago
+12,Bob Smith,William Smith,Elizabeth Smith,A+,33 Pine Ave Seattle
+13,Carol White,George White,Jennifer White,O+,14 Maple Rd Austin
+14,David Brown,Christopher Brown,Jessica Brown,O-,61 Cedar Court Denver
+15,Eve Davis,Michael Davis,Karen Davis,AB-,77 Elm Blvd New York
+16,Frank Wilson,Mark Wilson,Betty Wilson,AB+,43 Spruce Street Boston
+17,Grace Lee,Andrew Lee,Lisa Lee,A-,5 Birch Lane San Francisco
+18,Henry Clark,Donald Clark,Helen Clark,O+,17 Willow Way Chicago
+19,Iris Moore,Anthony Moore,Sarah Moore,B+,29 Walnut Drive Miami
+20,Jack Turner,Paul Turner,Donna Turner,A+,92 Ash Avenue Houston
+21,Alice Johnson,Gregory Johnson,Carol Johnson,O+,3 Spruce Blvd Atlanta
+22,Bob Smith,Edward Smith,Ruth Smith,B-,55 Cedar Lane Portland
+23,Carol White,Raymond White,Sharon White,AB+,21 Elm Ave Phoenix
+24,David Brown,Lawrence Brown,Diane Brown,A+,68 Oak Street Dallas
+25,Eve Davis,Scott Davis,Judith Davis,O+,14 Pine Court Nashville
+26,Frank Wilson,Harold Wilson,Virginia Wilson,B+,37 Maple Way Denver
+27,Grace Lee,Wayne Lee,Ann Lee,A-,9 Birch Street Minneapolis
+28,Henry Clark,Arthur Clark,Carolyn Clark,AB-,48 Walnut Blvd Portland
+29,Iris Moore,Eugene Moore,Janet Moore,O-,72 Spruce Road Seattle
+30,Jack Turner,Carl Turner,Mildred Turner,B+,6 Cedar Ave Kansas City` },
   { id:"prod", name:"products.csv",
     content:`name,category,price_range,stock_status\nLaptop Pro,electronics,high,in stock\nWireless Mouse,electronics,low,in stock\nStanding Desk,furniture,high,out of stock\nOffice Chair,furniture,medium,in stock\nUSB Hub,electronics,low,in stock\nMonitor 27in,electronics,medium,in stock` },
   { id:"orders", name:"orders.csv",
@@ -92,11 +157,34 @@ function rowsToCSV(headers,rows){
 //   Nmatch: 0
 //   Search time = 76370 micro-seconds
 
-const BACKEND = "http://localhost:8000";
+// Each search type's backend is its own standalone repo/process, so each
+// gets its own port. single/and/rdbms all still run on :8000 exactly as
+// before - only "or" (disjunction, odxt-cli) is new. Adjust ports here if
+// your actual deployment differs; nothing else in the file needs to change.
+const BACKEND_PORTS = { single: 8000, and: 8000, rdbms: 8000, or: 8001 };
+// single/and/rdbms all resolve to the same physical backend today, so they
+// share one status/index cache under this key; "or" gets its own.
+const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", rdbms: "primary", or: "or" };
 
-async function checkBackend() {
+const getBackendUrl = (port) => {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  // Handle remote proxies/Codespaces (e.g., ports 3000/8000 mapped to subdomains)
+  if (hostname.includes("-3000.")) {
+    return `${protocol}//${hostname.replace("-3000.", `-${port}.`)}`;
+  }
+  if (hostname.includes("3000-")) {
+    return `${protocol}//${hostname.replace("3000-", `${port}-`)}`;
+  }
+  return `http://${hostname}:${port}`;
+};
+
+// key -> backend base URL, e.g. {primary: "http://host:8000", or: "http://host:8001"}
+const BACKENDS = { primary: getBackendUrl(BACKEND_PORTS.single), or: getBackendUrl(BACKEND_PORTS.or) };
+
+async function checkBackend(backendUrl) {
   try {
-    const r = await fetch(`${BACKEND}/stats`, {signal: AbortSignal.timeout(2000)});
+    const r = await fetch(`${backendUrl}/stats`, {signal: AbortSignal.timeout(2000)});
     return r.ok;
   } catch { return false; }
 }
@@ -104,9 +192,9 @@ async function checkBackend() {
 // Download word_to_id.csv from backend and parse into a {word: hexId} map.
 // Caching this client-side means SSE searches can resolve word_ids locally
 // without revealing plaintext keywords to the server during search time.
-async function fetchWordToId() {
+async function fetchWordToId(backendUrl) {
   try {
-    const res = await fetch(`${BACKEND}/download/word_to_id.csv`);
+    const res = await fetch(`${backendUrl}/download/word_to_id.csv`);
     if (!res.ok) return {};
     const text = await res.text();
     const map = {};
@@ -123,7 +211,7 @@ async function fetchWordToId() {
 
 // Upload a single file to backend. fileOrContent can be a File object (binary
 // preserved, PyPDF2 extracts text server-side) or a string (for sample PDFs).
-async function uploadOneFile(name, fileOrContent) {
+async function uploadOneFile(backendUrl, name, fileOrContent) {
   const fd = new FormData();
   if (fileOrContent instanceof File) {
     fd.append("files", fileOrContent, name);
@@ -131,7 +219,7 @@ async function uploadOneFile(name, fileOrContent) {
     // text string (sample PDFs) - backend falls back to text decode if PyPDF2 fails
     fd.append("files", new Blob([fileOrContent], {type:"text/plain"}), name);
   }
-  const res = await fetch(`${BACKEND}/upload`, {method:"POST", body:fd});
+  const res = await fetch(`${backendUrl}/upload`, {method:"POST", body:fd});
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `upload failed: ${res.status}`);
@@ -139,12 +227,29 @@ async function uploadOneFile(name, fileOrContent) {
   return res.json();
 }
 
+// Fan a single file out to every backend in parallel, since each backend is
+// an independent process with its own index - a doc uploaded while on the
+// "and" tab still needs to reach the "or" backend so switching tabs later
+// doesn't require re-uploading everything.
+async function uploadToAllBackends(name, fileOrContent) {
+  const entries = Object.entries(BACKENDS);
+  const settled = await Promise.allSettled(
+    entries.map(([, url]) => uploadOneFile(url, name, fileOrContent))
+  );
+  const byKey = {};
+  entries.forEach(([key], i) => {
+    const r = settled[i];
+    byKey[key] = r.status === "fulfilled" ? {ok:true, data:r.value} : {ok:false, error:r.reason?.message||String(r.reason)};
+  });
+  return byKey;
+}
+
 // SSE search:
 // 1. Resolve word_ids from the LOCAL wordToId cache (no keyword sent to server)
 // 2. Call /conjunctive-search with those IDs to run ntru-oqxt-search binary
 // 3. Parse binary stdout for real timing
 // 4. Compute matched doc names from JS index (client-side knowledge, for display)
-async function sseSearch(terms, wordToId, indexedKws) {
+async function sseSearch(backendUrl, qtype, terms, wordToId, indexedKws) {
   const resolved = terms.map(t => ({
     word:   t.toLowerCase().trim(),
     wordId: wordToId[t.toLowerCase().trim()] || null,
@@ -160,13 +265,14 @@ async function sseSearch(terms, wordToId, indexedKws) {
   const wordIds = found.map(r => r.wordId);
   const words   = found.map(r => r.word);
 
-  // Intersection from JS index for display (client knows this in plaintext)
+  // Client-side preview of the expected result set (client knows this in
+  // plaintext): intersection for and/single, union for or.
   const lists = words.map(w => indexedKws[w] || []);
-  const matchedDocNames = lists.length
-    ? lists.reduce((a,b) => a.filter(d => b.includes(d)))
-    : [];
+  const matchedDocNames = !lists.length ? []
+    : qtype === "or" ? [...new Set(lists.flat())]
+    : lists.reduce((a,b) => a.filter(d => b.includes(d)));
 
-  const conjRes = await fetch(`${BACKEND}/conjunctive-search`, {
+  const conjRes = await fetch(`${backendUrl}/conjunctive-search`, {
     method:  "POST",
     headers: {"Content-Type":"application/json"},
     body:    JSON.stringify({word_ids: wordIds, words}),
@@ -207,6 +313,9 @@ function regularSearch(qtype, terms, indexedKws) {
   let docs = [];
   if (qtype === "single") {
     docs = indexedKws[terms[0].toLowerCase()] || [];
+  } else if (qtype === "or") {
+    const lists = terms.map(t => indexedKws[t.toLowerCase()] || []);
+    docs = [...new Set(lists.flat())];
   } else {
     const lists = terms.map(t => indexedKws[t.toLowerCase()] || []);
     docs = lists.length ? lists.reduce((a,b) => a.filter(d => b.includes(d))) : [];
@@ -223,32 +332,98 @@ class TCVMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
   lookup(tbl,col,val){return this._t.get(`${tbl}\0${col}\0${val}`);}
   label(id){const e=this._f.get(id);return e?`(${e.tbl},${e.col},'${e.val}')`:id;}}
 class TRMap{constructor(){this._t=new Map();this._f=new Map();this._c=1;}
-  getOrCreate(tbl,ri){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri});}return this._t.get(k);}
+  // rowData stores the full row array so we can access employee_id for cross-table joins
+  getOrCreate(tbl,ri,rowData){const k=`${tbl}\0${ri}`;if(!this._t.has(k)){const id=(this._c++).toString(16).padStart(8,"0");this._t.set(k,id);this._f.set(id,{tbl,ri,rowData:rowData||[]});}return this._t.get(k);}
   resolve(id){return this._f.get(id)||null;}}
 function buildIndex(tables){
   const tcv=new TCVMap(),tr=new TRMap(),idx=new Map();
   for(const{name,headers,rows}of tables)for(let ri=0;ri<rows.length;ri++){
-    const trid=tr.getOrCreate(name,ri);
+    const trid=tr.getOrCreate(name,ri,rows[ri]);
     for(let ci=0;ci<headers.length;ci++){const val=normalise(rows[ri][ci]);const tcvId=tcv.getOrCreate(name,headers[ci],val);if(!idx.has(tcvId))idx.set(tcvId,new Set());idx.get(tcvId).add(trid);}
   }
   return{tcv,tr,idx};
 }
-function rdbmsConjSearch(tcvIds,idx,tr){
+
+// Resolve a set of TR IDs to full row objects
+function resolveTrIds(trIdSet,tr){return [...trIdSet].map(id=>{const r=tr.resolve(id);return r?{trid:id,...r}:null;}).filter(Boolean);}
+
+// Cross-table conjunctive search using employee_id as the primary key.
+// Groups filters by table, finds candidate rows per table, then joins on the
+// primary key (first column named "employee id" / "employee_id" / "id").
+function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
   if(!tcvIds.length)return{hits:[],missing:[]};
   const missing=tcvIds.filter(id=>!idx.has(id));
   if(missing.length)return{hits:[],missing};
-  let result=new Set(idx.get(tcvIds[0]));
-  for(let i=1;i<tcvIds.length;i++)for(const id of result)if(!idx.get(tcvIds[i]).has(id))result.delete(id);
-  return{hits:[...result].map(trid=>{const r=tr.resolve(trid);return r?{trid,...r}:null;}).filter(Boolean),missing:[]};
+
+  // Detect whether this is a cross-table query
+  const tables=[...new Set((activeFilters||[]).map(f=>f.table).filter(Boolean))];
+  const isCrossTable=tables.length>1;
+
+  if(!isCrossTable){
+    // Same-table: plain TR-ID intersection
+    let result=new Set(idx.get(tcvIds[0]));
+    for(let i=1;i<tcvIds.length;i++){
+      const next=idx.get(tcvIds[i]);
+      for(const id of [...result])if(!next.has(id))result.delete(id);
+    }
+    return{hits:resolveTrIds(result,tr),missing:[]};
+  }
+
+  // Cross-table: for each table, intersect only the filters that belong to it,
+  // then join across tables on employee_id (primary key = first column).
+  // Build map: tableName -> Set of matching TR IDs
+  const perTableHits={};
+  for(const tbl of tables){
+    const tblFilters=(activeFilters||[]).filter(f=>f.table===tbl);
+    const tblTcvIds=tblFilters.map(f=>idx.has(tcvIds[(activeFilters||[]).indexOf(f)])?tcvIds[(activeFilters||[]).indexOf(f)]:null).filter(Boolean);
+    if(!tblTcvIds.length){perTableHits[tbl]=new Set();continue;}
+    let s=new Set(idx.get(tblTcvIds[0]));
+    for(let i=1;i<tblTcvIds.length;i++){const nx=idx.get(tblTcvIds[i]);for(const id of [...s])if(!nx.has(id))s.delete(id);}
+    perTableHits[tbl]=s;
+  }
+
+  // Extract primary-key values (employee id) from each table's matching rows
+  function getPkVal(trid,tbl){
+    const resolved=tr.resolve(trid);
+    if(!resolved)return null;
+    const td=tableData?.[tbl];
+    if(!td)return null;
+    // Primary key column: first column whose name contains "employee id" / "employee_id" / "id"
+    const pkCol=td.headers.findIndex(h=>/(employee.?id|^id$)/i.test(h));
+    if(pkCol<0)return null;
+    return normalise(resolved.rowData[pkCol]);
+  }
+
+  // Find the common primary-key values across all tables
+  const pkSets=tables.map(tbl=>new Set([...perTableHits[tbl]].map(id=>getPkVal(id,tbl)).filter(Boolean)));
+  let commonPks=pkSets[0];
+  for(let i=1;i<pkSets.length;i++)commonPks=new Set([...commonPks].filter(pk=>pkSets[i].has(pk)));
+
+  if(!commonPks.size)return{hits:[],missing:[]};
+
+  // Collect all matching rows from ALL tables whose employee_id is in the common set
+  const hits=[];
+  for(const tbl of tables){
+    for(const trid of perTableHits[tbl]){
+      const pk=getPkVal(trid,tbl);
+      if(pk&&commonPks.has(pk)){
+        const r=tr.resolve(trid);
+        if(r)hits.push({trid,...r});
+      }
+    }
+  }
+  return{hits,missing:[]};
 }
 
 // ── Explanations ───────────────────────────────────────────────────────────────
 const EXP = {
   "regular-single": "Looks up every document tagged with this keyword in a plain plaintext index. No encryption. Timing is real JS set lookup time.",
   "regular-and":    "Intersects posting lists for each keyword. Only documents present in every list are returned. Timing is real JS intersection time.",
+  "regular-or":     "Unions posting lists for each keyword. Any document present in at least one list is returned. Timing is real JS union time.",
   "regular-rdbms":  "Each CSV file becomes a table. The index uses the same TCV and TR ID structure as inverted_index.py. Filters follow the /search endpoint shape. Timing is real JS set intersection time.",
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
+  "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
   "sse-rdbms":      "Same CSV conjunctive search as Regular RDBMS, shown as a direct comparison. RDBMS finds rows in plaintext. SSE does the equivalent search over encrypted data.",
 };
 
@@ -354,12 +529,17 @@ function RDBMSPanel({mode,tableData,dbIndex}){
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
-    const tcvIds=active.map(f=>dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))).filter(Boolean);
+    // Build array of (tcvId, filter) pairs — we need to keep the filter alongside the tcvId
+    // so the cross-table join knows which tcvId belongs to which table
+    const tcvPairs=active.map(f=>({f,id:dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))}));
+    const tcvIds=tcvPairs.map(p=>p.id).filter(Boolean);
+    // Re-map active filters to only those that resolved to a valid tcvId
+    const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
     const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr);
+    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
     const ms=performance.now()-t0;
-    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:td.rows[h.ri]||[]}:h;});
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:active.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
+    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
@@ -419,27 +599,43 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               </span>
             ))}
           </div>
-          {result.hits.length>0&&(
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
-                <thead><tr>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>table</th>
-                  <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#666",border:"1px solid #1a1a1a"}}>row</th>
-                  {(result.hits[0]?.headers||[]).map(h=><th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#888",border:"1px solid #1a1a1a",whiteSpace:"nowrap"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {result.hits.slice(0,50).map((hit,ri)=>(
-                    <tr key={hit.trid}>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.tbl}</td>
-                      <td style={{padding:"6px 10px",color:"#777",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{hit.ri}</td>
-                      {(hit.rowData||[]).map((cell,ci)=><td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {result.hits.length>50&&<div style={{fontSize:10,color:"#666",marginTop:6,fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
-            </div>
-          )}
+          {result.hits.length>0&&(()=>{
+            // Group hits by table so each table gets its own header row
+            const groups={};
+            result.hits.forEach(h=>{if(!groups[h.tbl])groups[h.tbl]=[];groups[h.tbl].push(h);});
+            const TABLE_COLORS={employees:"#ffd208",employee2:"#4ade80",products:"#60a5fa",orders:"#f97316"};
+            const getColor=tbl=>TABLE_COLORS[tbl]||(Object.values(TABLE_COLORS)[Object.keys(groups).indexOf(tbl)%4]||"#a78bfa");
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                {Object.entries(groups).map(([tbl,rows])=>(
+                  <div key={tbl} style={{overflowX:"auto",border:`1px solid ${getColor(tbl)}22`,borderRadius:6}}>
+                    <div style={{padding:"6px 12px",background:`${getColor(tbl)}11`,borderBottom:`1px solid ${getColor(tbl)}33`,fontFamily:"Space Mono,monospace",fontSize:10,color:getColor(tbl),fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                      📋 {tbl} — {rows.length} row{rows.length>1?"s":""}
+                    </div>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
+                      <thead><tr>
+                        <th style={{padding:"6px 10px",textAlign:"left",background:"#111",color:"#555",border:"1px solid #1a1a1a",fontSize:10}}>row #</th>
+                        {(rows[0]?.headers||[]).map(h=>(
+                          <th key={h} style={{padding:"6px 10px",textAlign:"left",background:"#111",color:getColor(tbl),border:"1px solid #1a1a1a",whiteSpace:"nowrap",fontSize:10,opacity:0.85}}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {rows.map((hit,ri)=>(
+                          <tr key={hit.trid}>
+                            <td style={{padding:"6px 10px",color:"#555",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d",fontSize:10}}>{hit.ri}</td>
+                            {(hit.rowData||[]).map((cell,ci)=>(
+                              <td key={ci} style={{padding:"6px 10px",color:"#ccc",border:"1px solid #1a1a1a",background:ri%2===0?"#0a0a0a":"#0d0d0d"}}>{cell}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                {result.hits.length>50&&<div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -447,13 +643,14 @@ function RDBMSPanel({mode,tableData,dbIndex}){
 }
 
 // ── Search console ──────────────────────────────────────────────────────────────
-const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["rdbms","RDBMS Query"]];
+const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["or","Disjunction (OR)"],["rdbms","RDBMS Query"]];
 
-function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype}){
+function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype,backendUrl}){
   const [mode,setMode]     = useState("regular");
   const [input,setInput]   = useState("");
   const [result,setResult] = useState(null);
   const [busy,setBusy]     = useState(false);
+  const [searchCountdown,setSearchCountdown] = useState(4);
 
   const hasVault  = vault.length > 0;
   const sseReady  = backendStatus==="online" && uploadStatus==="done";
@@ -467,18 +664,27 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
       setResult({type:"regular",qtype,...regularSearch(qtype,t,indexedKws),terms:t});
     } else {
       setBusy(true); setResult(null);
+      setSearchCountdown(4);
+      const interval = setInterval(() => {
+        setSearchCountdown(prev => (prev > 1 ? prev - 1 : 1));
+      }, 1000);
       try {
-        const r = await sseSearch(t, wordToId, indexedKws);
+        const r = await sseSearch(backendUrl, qtype, t, wordToId, indexedKws);
         setResult({type:"sse",qtype,...r,terms:t});
       } catch(e) {
         setResult({type:"sse",qtype,ok:false,error:e.message,terms:t});
+      } finally {
+        clearInterval(interval);
+        setBusy(false);
       }
-      setBusy(false);
     }
   }
 
   const placeholder = qtype==="single" ? "e.g. revenue" : "e.g. revenue, profit";
   const hint = qtype==="single" ? "One keyword. Any word from the uploaded documents works."
+    : qtype==="or" ? (mode==="sse"
+        ? "Two or more keywords separated by commas. Each is bucketized and searched independently, then results are unioned."
+        : "Two or more keywords separated by commas. Returns documents containing any of them.")
     : mode==="sse" ? "Two or more keywords separated by commas. The first is the s-term for TSet_Retrieve."
     : "Two or more keywords separated by commas. Returns documents containing all of them.";
 
@@ -524,8 +730,34 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
               style={{flex:1,padding:"10px 14px",fontSize:13,background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,color:"#f5f5f0",fontFamily:"Space Grotesk, sans-serif",outline:"none"}}
               onFocus={e=>e.target.style.borderColor="#ffd208"} onBlur={e=>e.target.style.borderColor="#1a1a1a"}/>
             <button onClick={handleSearch} disabled={!hasVault||(mode==="sse"&&!sseReady)||busy}
-              style={{padding:"10px 22px",borderRadius:6,fontWeight:700,fontSize:13,background:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#ffd208":"#1a1a1a",color:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#0a0a0a":"#555",border:"none",cursor:"pointer"}}>
-              {busy?"...":"Search"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                padding:"10px 22px",
+                borderRadius:6,
+                fontWeight:700,
+                fontSize:13,
+                background:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#ffd208":busy?"#ffd20822":"#1a1a1a",
+                color:(hasVault&&!(mode==="sse"&&!sseReady)&&!busy)?"#0a0a0a":busy?"#ffd208":"#555",
+                border:"none",
+                cursor: busy ? "wait" : (hasVault&&!(mode==="sse"&&!sseReady)) ? "pointer" : "default",
+                transition: "all 0.15s"
+              }}>
+              {busy ? (
+                <>
+                  <div className="spinner" style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid #ffd20822",
+                    borderTop: "2px solid #ffd208",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <span>Searching (Running ntru-oqxt-search C++ binary... ~{searchCountdown}s)</span>
+                </>
+              ) : "Search"}
             </button>
           </div>
           <div style={{fontSize:11,color:"#666",marginBottom:18}}>{!hasVault?"Upload at least one document before searching.":hint}</div>
@@ -591,18 +823,23 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
                     {result.wordIds?.length > 0 && (
                       <>
                         <div style={{fontSize:11,color:"#777",marginBottom:6}}>
-                          Word IDs sent to ntru-oqxt-search. Server never sees plaintext keywords:
+                          Word IDs sent to {result.qtype==="or" ? "odxt-cli" : "ntru-oqxt-search"}. Server never sees plaintext keywords:
                         </div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:result.qtype==="and"&&result.wordIds.length>1?10:0}}>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:result.wordIds.length>1?10:0}}>
                           {result.wordIds.map((id,i)=>(
-                            <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:i===0?"#ffd208":"#a78bfa",background:i===0?"#ffd20810":"#a78bfa10",border:`1px solid ${i===0?"#ffd20833":"#a78bfa33"}`,borderRadius:4,padding:"3px 8px"}}>
-                              {id}<span style={{opacity:0.5,marginLeft:4,fontSize:9}}>{i===0?"(s-term)":"(x-term)"}</span>
+                            <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:result.qtype==="and"&&i===0?"#ffd208":result.qtype==="and"?"#a78bfa":"#ffd208",background:result.qtype==="and"&&i===0?"#ffd20810":result.qtype==="and"?"#a78bfa10":"#ffd20810",border:`1px solid ${result.qtype==="and"&&i===0?"#ffd20833":result.qtype==="and"?"#a78bfa33":"#ffd20833"}`,borderRadius:4,padding:"3px 8px"}}>
+                              {id}{result.qtype==="and"&&<span style={{opacity:0.5,marginLeft:4,fontSize:9}}>{i===0?"(s-term)":"(x-term)"}</span>}
                             </span>
                           ))}
                         </div>
                         {result.qtype==="and"&&result.wordIds.length>1&&(
                           <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
                             s-term TSet chain retrieved first. XTag computed for each x-term against each candidate, then checked against the bloom filter.
+                          </div>
+                        )}
+                        {result.qtype==="or"&&result.wordIds.length>1&&(
+                          <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
+                            Each keyword ID is bucketized and searched independently against its own encrypted postings; the final result is the union across all of them.
                           </div>
                         )}
                       </>
@@ -622,26 +859,36 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
 export default function LiveDemo(){
   const [vault,setVault]                   = useState([]);
   const [indexedKws,setIndexedKws]         = useState({});
-  const [wordToId,setWordToId]             = useState({});  // word → hex_id, cached from backend
+  // Keyed by backend key ("primary" for single/and/rdbms, "or" for
+  // disjunction) since each is an independent backend process/repo with its
+  // own word_to_id assignment - ids are NOT interchangeable across backends.
+  const [wordToIdByKey,setWordToIdByKey]       = useState({primary:{}, or:{}});
   const [tableData,setTableData]           = useState({});
   const [dbIndex,setDbIndex]               = useState(null);
-  const [backendStatus,setBackendStatus]   = useState("checking");
-  const [uploadStatus,setUploadStatus]     = useState("idle");
+  const [backendStatusByKey,setBackendStatusByKey] = useState({primary:"checking", or:"checking"});
+  const [uploadStatusByKey,setUploadStatusByKey]   = useState({primary:"idle", or:"idle"});
+  const [uploadCountdown,setUploadCountdown] = useState(15);
   const [dropActive,setDropActive]         = useState(false);
   const [libOpen,setLibOpen]               = useState(true);
   const [qtype,setQtype]                   = useState("single");
   const fileRef    = useRef();
   const isRdbms    = qtype === "rdbms";
   const vaultMap   = Object.fromEntries(vault.map(d => [d.name, d]));
+  const backendKey     = BACKEND_KEY_FOR_QTYPE[qtype] || "primary";
+  const backendStatus  = backendStatusByKey[backendKey];
+  const uploadStatus   = uploadStatusByKey[backendKey];
+  const wordToId        = wordToIdByKey[backendKey];
 
   useEffect(()=>{
-    checkBackend().then(ok => setBackendStatus(ok ? "online" : "offline"));
+    Object.entries(BACKENDS).forEach(([key, url]) => {
+      checkBackend(url).then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
+    });
   },[]);
 
-  // Refresh the wordToId cache from backend (called after every successful upload)
-  async function refreshWordToId() {
-    const map = await fetchWordToId();
-    if (Object.keys(map).length) setWordToId(map);
+  // Refresh the wordToId cache for one backend (called after every upload to that backend)
+  async function refreshWordToId(key) {
+    const map = await fetchWordToId(BACKENDS[key]);
+    if (Object.keys(map).length) setWordToIdByKey(prev => ({...prev, [key]: map}));
   }
 
   // Add doc to vault and JS keyword index
@@ -659,11 +906,19 @@ export default function LiveDemo(){
   // keywords from the response, then refreshes the local wordToId cache.
   // fileOrContent: File object (real PDF/TXT from disk) or string (sample content).
   async function uploadAndCommit(name, fileOrContent, fallbackKeywords, storedContent) {
-    setUploadStatus("uploading");
+    setUploadStatusByKey(prev => Object.fromEntries(Object.keys(prev).map(k => [k, "uploading"])));
+    setUploadCountdown(15);
+    const interval = setInterval(() => {
+      setUploadCountdown(prev => (prev > 1 ? prev - 1 : 1));
+    }, 1000);
     try {
-      const data = await uploadOneFile(name, fileOrContent);
-      const proc = data.processed?.[0];
-      const kws  = proc ? filterDisplayKeywords(proc.keywords) : (fallbackKeywords || []);
+      // Fan out to every backend - each is an independent process/index, so
+      // a doc uploaded on one tab needs to land in all of them for the
+      // other tabs to find it later without a re-upload.
+      const results = await uploadToAllBackends(name, fileOrContent);
+      const primary  = results.primary;
+      const proc     = primary?.ok ? primary.data.processed?.[0] : null;
+      const kws      = proc ? filterDisplayKeywords(proc.keywords) : (fallbackKeywords || []);
       commitDoc({
         id: name, 
         name, 
@@ -671,8 +926,12 @@ export default function LiveDemo(){
         content: storedContent || null,
         rawFile: fileOrContent instanceof File ? fileOrContent : null
       });
-      await refreshWordToId();
-      setUploadStatus("done");
+      await Promise.all(Object.keys(results).map(refreshWordToId));
+      setUploadStatusByKey(
+        Object.fromEntries(Object.entries(results).map(([k,r]) => [k, r.ok ? "done" : "error"]))
+      );
+      const anyFailed = Object.values(results).some(r => !r.ok);
+      if (anyFailed) console.error("upload error on some backends:", results);
     } catch(e) {
       console.error("upload error:", e);
       // Fall back to adding with provided keywords so UI still works offline
@@ -683,7 +942,9 @@ export default function LiveDemo(){
         content: storedContent || null,
         rawFile: fileOrContent instanceof File ? fileOrContent : null
       });
-      setUploadStatus("error");
+      setUploadStatusByKey(prev => Object.fromEntries(Object.keys(prev).map(k => [k, "error"])));
+    } finally {
+      clearInterval(interval);
     }
   }
 
@@ -751,6 +1012,12 @@ export default function LiveDemo(){
 
   return(
     <div style={{minHeight:"100vh",background:"#0a0a0a",padding:"60px 0",fontFamily:"Space Grotesk, sans-serif"}}>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"0 32px"}}>
         <div style={{marginBottom:48}}>
           <div style={{fontFamily:"Space Mono,monospace",fontSize:11,color:"#ffd208",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12}}>Interactive demo</div>
@@ -765,13 +1032,57 @@ export default function LiveDemo(){
               <div style={{fontSize:10,fontFamily:"Space Mono,monospace",letterSpacing:"0.12em",color:"#999",textTransform:"uppercase"}}>Client</div>
             </div>
 
-            <div onDragOver={e=>{e.preventDefault();setDropActive(true);}} onDragLeave={()=>setDropActive(false)} onDrop={handleDrop} onClick={()=>fileRef.current.click()}
-              style={{border:`1.5px dashed ${dropActive?"#ffd208":"#1a1a1a"}`,borderRadius:6,padding:"24px 16px",textAlign:"center",cursor:"pointer",background:dropActive?"#ffd20808":"transparent",transition:"all 0.2s ease"}}>
+            <div onDragOver={e=>{e.preventDefault();setDropActive(true);}} onDragLeave={()=>setDropActive(false)} onDrop={handleDrop} onClick={() => uploadStatus !== "uploading" && fileRef.current.click()}
+              style={{
+                border: `1.5px dashed ${uploadStatus === "uploading" ? "#ffd208" : dropActive ? "#ffd208" : "#1a1a1a"}`,
+                borderRadius: 6,
+                padding: "24px 16px",
+                textAlign: "center",
+                cursor: uploadStatus === "uploading" ? "wait" : "pointer",
+                background: uploadStatus === "uploading" || dropActive ? "#ffd20808" : "transparent",
+                transition: "all 0.2s ease",
+                position: "relative"
+              }}>
               <input ref={fileRef} type="file" accept={isRdbms?".csv":".pdf,.txt"} multiple={isRdbms} style={{display:"none"}}
-                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}}/>
-              <div style={{fontSize:22,color:dropActive?"#ffd208":"#444",marginBottom:6,transition:"color 0.2s"}}>↑</div>
-              <div style={{fontSize:13,fontWeight:600,color:dropActive?"#ffd208":"#888"}}>{dropActive?"drop to load":"drop or click to upload"}</div>
-              <div style={{fontSize:11,color:"#555",marginTop:3}}>{isRdbms?"CSV only, each file becomes a table":"PDF or TXT"}</div>
+                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}} disabled={uploadStatus === "uploading"}/>
+              {uploadStatus === "uploading" ? (
+                <div>
+                  <div className="spinner" style={{
+                    width: 24,
+                    height: 24,
+                    border: "2px solid #ffd20822",
+                    borderTop: "2px solid #ffd208",
+                    borderRadius: "50%",
+                    margin: "0 auto 12px",
+                    animation: "spin 0.8s linear infinite"
+                  }} />
+                  <div style={{fontSize: 13, fontWeight: 600, color: "#ffd208", fontFamily: "Space Grotesk, sans-serif"}}>Uploading & Indexing...</div>
+                  <div style={{fontSize: 11, color: "#999", marginTop: 4, fontFamily: "Space Mono, monospace"}}>
+                    Running C++ NTRU cryptographic setup (takes ~{uploadCountdown}s)
+                  </div>
+                  <div style={{
+                    width: "80%",
+                    height: 4,
+                    background: "#1a1a1a",
+                    borderRadius: 2,
+                    margin: "12px auto 0",
+                    overflow: "hidden"
+                  }}>
+                    <div style={{
+                      height: "100%",
+                      background: "#ffd208",
+                      width: `${((15 - uploadCountdown) / 15) * 100}%`,
+                      transition: "width 1s linear"
+                    }} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div style={{fontSize:22,color:dropActive?"#ffd208":"#444",marginBottom:6,transition:"color 0.2s"}}>↑</div>
+                  <div style={{fontSize:13,fontWeight:600,color:dropActive?"#ffd208":"#888"}}>{dropActive?"drop to load":"drop or click to upload"}</div>
+                  <div style={{fontSize:11,color:"#555",marginTop:3}}>{isRdbms?"CSV only, each file becomes a table":"PDF or TXT"}</div>
+                </>
+              )}
             </div>
 
             {/* Sample list switches based on active tab */}
@@ -864,7 +1175,7 @@ export default function LiveDemo(){
           vault={vault} indexedKws={indexedKws} vaultMap={vaultMap}
           tableData={tableData} dbIndex={dbIndex}
           backendStatus={backendStatus} uploadStatus={uploadStatus}
-          wordToId={wordToId}
+          wordToId={wordToId} backendUrl={BACKENDS[backendKey]}
           qtype={qtype} setQtype={setQtype}
         />
       </div>
