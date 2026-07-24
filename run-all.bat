@@ -9,7 +9,8 @@ docker compose up -d
 
 :: 2. Start disjunction services (ODXT Backend)
 echo [*] Launching ODXT disjunction backend...
-docker compose -f "c:\Users\munmu\Downloads\disjunction\docker-compose.yml" up -d
+docker compose -f "backend_ORsearch\docker-compose.yml" up -d
+
 
 echo ==================================================
 echo   [SUCCESS] All services are starting up!
