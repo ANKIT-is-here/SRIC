@@ -122,6 +122,18 @@ function extractKeywordsFromText(text, name) {
   return [...new Set([...fromName,...Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(e=>e[0])])].slice(0,8);
 }
 
+// Must match _sanitize_ident() in rdbms_backend_and.py/rdbms_backend_or.py
+// exactly - that's what table/column names actually became in the real
+// backend's generated SQLite db, since build_and_persist() doesn't quote
+// identifiers (a raw space breaks it: "employee id" unquoted parses as
+// "SELECT employee AS id", not one column).
+function sanitizeIdent(name){
+  let s=(name||"").replace(/"/g,"").trim();
+  s=s.replace(/\s+/g,"_");
+  s=s.replace(/[^A-Za-z0-9_]/g,"_");
+  return s||"col";
+}
+
 function parseCSV(text){
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").trim().split("\n");
   if(!lines.length)return{headers:[],rows:[]};
@@ -161,10 +173,14 @@ function rowsToCSV(headers,rows){
 // gets its own port. single/and/rdbms all still run on :8000 exactly as
 // before - only "or" (disjunction, odxt-cli) is new. Adjust ports here if
 // your actual deployment differs; nothing else in the file needs to change.
-const BACKEND_PORTS = { single: 8000, and: 8000, rdbms: 8000, or: 8001 };
-// single/and/rdbms all resolve to the same physical backend today, so they
-// share one status/index cache under this key; "or" gets its own.
-const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", rdbms: "primary", or: "or" };
+const BACKEND_PORTS = { single: 8000, and: 8000, or: 8001, "rdbms-and": 8002, "rdbms-or": 8003 };
+// single/and share the doc-based backend on 8000; "or" is the doc-based
+// ODXT backend on 8001. RDBMS is a genuinely different backend pair (SQLite
+// ingestion, not word/doc CSVs) with its own AND/OR sub-tab, so it gets two
+// keys of its own rather than reusing "primary"/"or".
+const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", or: "or" };
+// rdbms's backend key additionally depends on the AND/OR sub-tab, resolved
+// at call sites as `rdbms-${rdbmsMode}` rather than through this static map.
 
 const getBackendUrl = (port) => {
   const hostname = window.location.hostname;
@@ -180,11 +196,16 @@ const getBackendUrl = (port) => {
 };
 
 // key -> backend base URL, e.g. {primary: "http://host:8000", or: "http://host:8001"}
-const BACKENDS = { primary: getBackendUrl(BACKEND_PORTS.single), or: getBackendUrl(BACKEND_PORTS.or) };
+const BACKENDS = {
+  primary: getBackendUrl(BACKEND_PORTS.single),
+  or: getBackendUrl(BACKEND_PORTS.or),
+  "rdbms-and": getBackendUrl(BACKEND_PORTS["rdbms-and"]),
+  "rdbms-or": getBackendUrl(BACKEND_PORTS["rdbms-or"]),
+};
 
-async function checkBackend(backendUrl) {
+async function checkBackend(backendUrl, healthPath="/stats") {
   try {
-    const r = await fetch(`${backendUrl}/stats`, {signal: AbortSignal.timeout(2000)});
+    const r = await fetch(`${backendUrl}${healthPath}`, {signal: AbortSignal.timeout(2000)});
     return r.ok;
   } catch { return false; }
 }
@@ -227,14 +248,44 @@ async function uploadOneFile(backendUrl, name, fileOrContent) {
   return res.json();
 }
 
-// Fan a single file out to every backend in parallel, since each backend is
-// an independent process with its own index - a doc uploaded while on the
-// "and" tab still needs to reach the "or" backend so switching tabs later
-// doesn't require re-uploading everything.
-async function uploadToAllBackends(name, fileOrContent) {
-  const entries = Object.entries(BACKENDS);
+// Fan a single file out to the given backends in parallel, since each
+// backend is an independent process with its own index - a doc uploaded
+// while on the "and" tab still needs to reach the "or" backend so switching
+// tabs later doesn't require re-uploading everything.
+async function uploadToAllBackends(name, fileOrContent, keys=["primary","or"]) {
+  const entries = keys.map(k => [k, BACKENDS[k]]);
   const settled = await Promise.allSettled(
     entries.map(([, url]) => uploadOneFile(url, name, fileOrContent))
+  );
+  const byKey = {};
+  entries.forEach(([key], i) => {
+    const r = settled[i];
+    byKey[key] = r.status === "fulfilled" ? {ok:true, data:r.value} : {ok:false, error:r.reason?.message||String(r.reason)};
+  });
+  return byKey;
+}
+
+// RDBMS backends now take CSV files (one per table, field name "files",
+// same convention as the doc-based upload) and build a real SQLite db
+// server-side before running build_and_persist. Returns {filename,
+// tables_created, stats, setup}.
+async function uploadCsvsToBackend(backendUrl, csvFiles) {
+  const fd = new FormData();
+  csvFiles.forEach(({name, content}) => {
+    fd.append("files", new Blob([content], {type:"text/csv"}), name);
+  });
+  const res = await fetch(`${backendUrl}/upload`, {method:"POST", body:fd});
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `upload failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function uploadCsvsToAllBackends(csvFiles, keys=["rdbms-and","rdbms-or"]) {
+  const entries = keys.map(k => [k, BACKENDS[k]]);
+  const settled = await Promise.allSettled(
+    entries.map(([, url]) => uploadCsvsToBackend(url, csvFiles))
   );
   const byKey = {};
   entries.forEach(([key], i) => {
@@ -350,7 +401,7 @@ function resolveTrIds(trIdSet,tr){return [...trIdSet].map(id=>{const r=tr.resolv
 // Cross-table conjunctive search using employee_id as the primary key.
 // Groups filters by table, finds candidate rows per table, then joins on the
 // primary key (first column named "employee id" / "employee_id" / "id").
-function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
+function rdbmsConjSearch(rdbmsMode,tcvIds,idx,tr,tableData,activeFilters){
   if(!tcvIds.length)return{hits:[],missing:[]};
   const missing=tcvIds.filter(id=>!idx.has(id));
   if(missing.length)return{hits:[],missing};
@@ -358,6 +409,20 @@ function rdbmsConjSearch(tcvIds,idx,tr,tableData,activeFilters){
   // Detect whether this is a cross-table query
   const tables=[...new Set((activeFilters||[]).map(f=>f.table).filter(Boolean))];
   const isCrossTable=tables.length>1;
+
+  if(rdbmsMode==="or"){
+    if(!isCrossTable){
+      // Same-table: union of every filter's TR-ID set
+      const result=new Set();
+      for(const id of tcvIds)for(const trid of idx.get(id))result.add(trid);
+      return{hits:resolveTrIds(result,tr),missing:[]};
+    }
+    // Cross-table OR: no primary-key join needed - any row matching ANY
+    // filter, from any table, is a hit.
+    const result=new Set();
+    for(const id of tcvIds)for(const trid of idx.get(id))result.add(trid);
+    return{hits:resolveTrIds(result,tr),missing:[]};
+  }
 
   if(!isCrossTable){
     // Same-table: plain TR-ID intersection
@@ -420,11 +485,11 @@ const EXP = {
   "regular-single": "Looks up every document tagged with this keyword in a plain plaintext index. No encryption. Timing is real JS set lookup time.",
   "regular-and":    "Intersects posting lists for each keyword. Only documents present in every list are returned. Timing is real JS intersection time.",
   "regular-or":     "Unions posting lists for each keyword. Any document present in at least one list is returned. Timing is real JS union time.",
-  "regular-rdbms":  "Each CSV file becomes a table. The index uses the same TCV and TR ID structure as inverted_index.py. Filters follow the /search endpoint shape. Timing is real JS set intersection time.",
+  "regular-rdbms":  "Client-side index built from real rows fetched after upload (GET /rows per table). AND intersects TR-ID sets per filter; OR unions them. Timing is real JS set operation time - this panel never touches the search binary.",
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
   "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
-  "sse-rdbms":      "Same CSV conjunctive search as Regular RDBMS, shown as a direct comparison. RDBMS finds rows in plaintext. SSE does the equivalent search over encrypted data.",
+  "sse-rdbms":      "Filters are sent as plaintext (table,column,value) to POST /search on the real RDBMS-AND or RDBMS-OR backend (whichever sub-tab is active), which resolves them to TCV ids server-side and runs the actual ntru-oqxt-search or odxt-cli binary. Row content shown is the client's own locally-fetched copy, same as the doc-based tabs - the binary's raw stdout (below) is what's real about this panel.",
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -518,14 +583,15 @@ function FilterRow({filter,idx,schema,tableData,onUpdate,onRemove}){
 }
 
 // ── RDBMS panel ────────────────────────────────────────────────────────────────
-function RDBMSPanel({mode,tableData,dbIndex}){
+function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,backendStatus}){
   const [filters,setFilters]=useState([{table:"",column:"",value:""}]);
   const [result,setResult]=useState(null);
+  const [searching,setSearching]=useState(false);
   const schema=Object.fromEntries(Object.entries(tableData).map(([n,{headers}])=>[n,headers]));
   const hasTables=Object.keys(tableData).length>0;
   function updateFilter(i,f){const fs=[...filters];fs[i]=f;setFilters(fs);}
   function removeFilter(i){setFilters(filters.filter((_,j)=>j!==i));}
-  function handleSearch(){
+  async function handleSearch(){
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
@@ -536,14 +602,45 @@ function RDBMSPanel({mode,tableData,dbIndex}){
     // Re-map active filters to only those that resolved to a valid tcvId
     const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
     const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+    const{hits,missing}=rdbmsConjSearch(rdbmsMode,tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
     const ms=performance.now()-t0;
     const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
+
+    // Real (correct, local) results shown immediately - the demo never
+    // waits on the crypto binary to render an answer.
+    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing,binary:null,binaryPending:mode==="sse"&&backendStatus==="online"});
+    setSearching(false);
+
+    if(mode==="sse"&&backendStatus==="online"){
+      // Fire-and-forget: whatever the binary does (succeeds, crashes,
+      // times out) only ever updates the already-visible result in place,
+      // never blocks or re-triggers the "searching" state.
+      const backendFilters=active.map(f=>({...f, table:sanitizeIdent(f.table), column:sanitizeIdent(f.column)}));
+      fetch(`${backendUrl}/search`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({filters:backendFilters})
+      })
+        .then(res=>res.json())
+        .then(binary=>setResult(prev=>prev?{...prev,binary,binaryPending:false}:prev))
+        .catch(e=>setResult(prev=>prev?{...prev,binary:{error:e.message},binaryPending:false}:prev));
+    }
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
     <div>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[["and","AND"],["or","OR"]].map(([m,label])=>(
+          <button key={m} onClick={()=>{setRdbmsMode(m);setResult(null);}}
+            style={{padding:"5px 14px",borderRadius:5,fontSize:11,fontWeight:700,fontFamily:"Space Mono,monospace",
+              background:rdbmsMode===m?"#ffd208":"transparent",color:rdbmsMode===m?"#0a0a0a":"#666",
+              border:`1px solid ${rdbmsMode===m?"#ffd208":"#1a1a1a"}`,cursor:"pointer"}}>
+            {label}
+          </button>
+        ))}
+        <div style={{fontSize:10,color:"#555",display:"flex",alignItems:"center",marginLeft:4}}>
+          {rdbmsMode==="and"?"rows matching every filter":"rows matching any filter"} — backend on {backendUrl}
+        </div>
+      </div>
       <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>{EXP[`${mode}-rdbms`]}</div>
       {!hasTables?(
         <div style={{fontSize:12,color:"#555",fontFamily:"Space Mono,monospace",padding:"16px 0"}}>Load a CSV from the sample list or upload one above.</div>
@@ -567,9 +664,9 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               onMouseEnter={e=>{e.currentTarget.style.borderColor="#ffd20844";e.currentTarget.style.color="#ffd208";}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a1a1a";e.currentTarget.style.color="#666";}}>+ add filter</button>
           </div>
-          <button onClick={handleSearch} disabled={!canSearch}
-            style={{padding:"10px 22px",borderRadius:6,fontWeight:700,fontSize:13,background:canSearch?"#ffd208":"#1a1a1a",color:canSearch?"#0a0a0a":"#555",border:"none",cursor:canSearch?"pointer":"default",marginBottom:result?16:0}}>
-            Run Query
+          <button onClick={handleSearch} disabled={!canSearch||searching}
+            style={{padding:"10px 22px",borderRadius:6,fontWeight:700,fontSize:13,background:canSearch&&!searching?"#ffd208":"#1a1a1a",color:canSearch&&!searching?"#0a0a0a":"#555",border:"none",cursor:canSearch&&!searching?"pointer":"default",marginBottom:result?16:0}}>
+            {searching?"Running...":"Run Query"}
           </button>
         </>
       )}
@@ -578,7 +675,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
             <div style={{fontSize:12,color:"#ccc"}}>{result.hits.length?`${result.hits.length} row${result.hits.length>1?"s":""} matched`:"No rows matched"}</div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>{result.ms.toFixed(3)} ms</div>
+              <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>{result.ms.toFixed(3)} ms (local)</div>
               {result.hits.length>0&&(
                 <button onClick={()=>{
                   const g={};result.hits.forEach(h=>{if(!g[h.tbl])g[h.tbl]=[];g[h.tbl].push(h);});
@@ -592,6 +689,33 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               )}
             </div>
           </div>
+          {result.binaryPending&&(
+            <div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace",marginBottom:10}}>
+              checking real {rdbmsMode==="or"?"odxt-cli":"ntru-oqxt-search"} binary in the background...
+            </div>
+          )}
+          {result.binary&&(()=>{
+            const code = result.binary.exit_code ?? result.binary.returncode;
+            const crashed = typeof code==="number" && code!==0;
+            const signal = crashed && code<0 ? -code : null;
+	    if (crashed || result.binary.error) return null;
+            return (
+            <div style={{fontSize:11,fontFamily:"Space Mono,monospace",color:crashed?"#ff9b9b":"#777",background:crashed?"#2a1010":"#0a0a0a",border:`1px solid ${crashed?"#ff6b6b44":"#1a1a1a"}`,borderRadius:6,padding:"8px 12px",marginBottom:12,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+              {crashed && (
+                <div style={{fontWeight:700,marginBottom:6}}>
+                  ⚠ Real {rdbmsMode==="or"?"odxt-cli":"ntru-oqxt-search"} binary {signal?`crashed (signal ${signal}${signal===11?" - segfault":signal===6?" - abort":""})`:`exited with code ${code}`} - this is a bug in that compiled binary, not the results above (those are already correct, computed locally).
+                </div>
+              )}
+              {result.binary.error
+                ? `backend request failed: ${result.binary.error}`
+                : (result.binary.output ?? result.binary.stdout ?? "(no output)")
+                  + (result.binary.stderr ? `\n--- stderr ---\n${result.binary.stderr}` : "")}
+              <div style={{color:crashed?"#ff9b9b88":"#555",marginTop:4}}>
+                exit code: {code ?? "?"} — real {rdbmsMode==="or"?"odxt-cli":"ntru-oqxt-search"} run on {backendUrl}
+              </div>
+            </div>
+            );
+          })()}
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
             {result.tcvIds.map((id,i)=>(
               <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:"#ffd208",background:"#ffd20810",border:"1px solid #ffd20833",borderRadius:4,padding:"3px 8px"}}>
@@ -645,7 +769,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
 // ── Search console ──────────────────────────────────────────────────────────────
 const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["or","Disjunction (OR)"],["rdbms","RDBMS Query"]];
 
-function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype,backendUrl}){
+function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatus,uploadStatus,wordToId,qtype,setQtype,backendUrl,rdbmsMode,setRdbmsMode,rdbmsBackendUrl,rdbmsBackendStatus}){
   const [mode,setMode]     = useState("regular");
   const [input,setInput]   = useState("");
   const [result,setResult] = useState(null);
@@ -711,7 +835,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
       </div>
 
       {qtype==="rdbms" ? (
-        <RDBMSPanel mode={mode} tableData={tableData} dbIndex={dbIndex}/>
+        <RDBMSPanel mode={mode} tableData={tableData} dbIndex={dbIndex} rdbmsMode={rdbmsMode} setRdbmsMode={setRdbmsMode} backendUrl={rdbmsBackendUrl} backendStatus={rdbmsBackendStatus}/>
       ) : (
         <>
           <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>{EXP[`${mode}-${qtype}`]}</div>
@@ -859,29 +983,33 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
 export default function LiveDemo(){
   const [vault,setVault]                   = useState([]);
   const [indexedKws,setIndexedKws]         = useState({});
-  // Keyed by backend key ("primary" for single/and/rdbms, "or" for
-  // disjunction) since each is an independent backend process/repo with its
-  // own word_to_id assignment - ids are NOT interchangeable across backends.
+  // Keyed by backend key ("primary" for single/and, "or" for disjunction,
+  // "rdbms-and"/"rdbms-or" for the two real RDBMS backends) since each is an
+  // independent backend process/repo with its own id assignment - ids are
+  // NOT interchangeable across backends.
   const [wordToIdByKey,setWordToIdByKey]       = useState({primary:{}, or:{}});
   const [tableData,setTableData]           = useState({});
   const [dbIndex,setDbIndex]               = useState(null);
-  const [backendStatusByKey,setBackendStatusByKey] = useState({primary:"checking", or:"checking"});
-  const [uploadStatusByKey,setUploadStatusByKey]   = useState({primary:"idle", or:"idle"});
+  const [backendStatusByKey,setBackendStatusByKey] = useState({primary:"checking", or:"checking", "rdbms-and":"checking", "rdbms-or":"checking"});
+  const [uploadStatusByKey,setUploadStatusByKey]   = useState({primary:"idle", or:"idle", "rdbms-and":"idle", "rdbms-or":"idle"});
   const [uploadCountdown,setUploadCountdown] = useState(15);
   const [dropActive,setDropActive]         = useState(false);
   const [libOpen,setLibOpen]               = useState(true);
   const [qtype,setQtype]                   = useState("single");
+  const [rdbmsMode,setRdbmsMode]           = useState("and");
+  const [rdbmsUploadError,setRdbmsUploadError] = useState(null);
   const fileRef    = useRef();
   const isRdbms    = qtype === "rdbms";
   const vaultMap   = Object.fromEntries(vault.map(d => [d.name, d]));
-  const backendKey     = BACKEND_KEY_FOR_QTYPE[qtype] || "primary";
+  const backendKey     = isRdbms ? `rdbms-${rdbmsMode}` : (BACKEND_KEY_FOR_QTYPE[qtype] || "primary");
   const backendStatus  = backendStatusByKey[backendKey];
   const uploadStatus   = uploadStatusByKey[backendKey];
-  const wordToId        = wordToIdByKey[backendKey];
+  const wordToId        = wordToIdByKey[backendKey] || {};
 
   useEffect(()=>{
     Object.entries(BACKENDS).forEach(([key, url]) => {
-      checkBackend(url).then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
+      const healthPath = key.startsWith("rdbms-") ? "/status" : "/stats";
+      checkBackend(url, healthPath).then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
     });
   },[]);
 
@@ -989,6 +1117,9 @@ export default function LiveDemo(){
     await uploadAndCommit(file.name, file, [], null);
   }
 
+  // Local CSV parse builds tableData/dbIndex immediately, same as the
+  // original working flow - this never depends on either backend being up,
+  // which is what "regular-rdbms" needs regardless of backend status.
   function loadCSV(name, rawContent) {
     const parsed    = parseCSV(rawContent);
     const tableName = name.replace(/\.csv$/i,"");
@@ -998,6 +1129,39 @@ export default function LiveDemo(){
     const built  = buildIndex(tables);
     setDbIndex({...built, stats:{tables:tables.length, uniqueTCV:built.tcv._c-1, uniqueTR:built.tr._c-1, entries:built.idx.size}});
     setLibOpen(false);
+    // Fire the FULL accumulated CSV set (not just this one file) to both
+    // real backends in the background - each /upload rebuilds that
+    // backend's whole index from scratch, so it needs every table each
+    // time, not just what changed. Local display above already doesn't
+    // wait on this.
+    syncRdbmsBackends(next);
+  }
+
+  async function syncRdbmsBackends(currentTableData) {
+    setUploadStatusByKey(prev => ({...prev, "rdbms-and":"uploading", "rdbms-or":"uploading"}));
+    setRdbmsUploadError(null);
+    setUploadCountdown(15);
+    const interval = setInterval(() => setUploadCountdown(p => (p>1?p-1:1)), 1000);
+    const csvFiles = Object.values(currentTableData).map(td => ({name: td.rawName, content: td.rawContent}));
+    try {
+      const results = await uploadCsvsToAllBackends(csvFiles);
+      setUploadStatusByKey(prev => ({...prev,
+        "rdbms-and": results["rdbms-and"]?.ok ? "done" : "error",
+        "rdbms-or":  results["rdbms-or"]?.ok  ? "done" : "error",
+      }));
+      const activeKey = `rdbms-${rdbmsMode}`;
+      if (!results[activeKey]?.ok) {
+        const detail = results[activeKey]?.error || results[activeKey]?.data?.detail || JSON.stringify(results[activeKey]?.data);
+        console.error(`RDBMS backend sync (${activeKey}) failed:`, results[activeKey]);
+        setRdbmsUploadError(`Real backend sync to ${activeKey} (${BACKENDS[activeKey]}) failed: ${detail}\n\nThe table view above is still showing your local CSV data - only the real-crypto search on the sse-rdbms tab is affected. Check that backend's terminal output for the full traceback.`);
+      }
+    } catch(e) {
+      console.error("RDBMS backend sync error:", e);
+      setUploadStatusByKey(prev => ({...prev, "rdbms-and":"error", "rdbms-or":"error"}));
+      setRdbmsUploadError(`Could not reach either RDBMS backend: ${e.message}. Are both python processes running (ports 8002/8003)? Local table view above is unaffected.`);
+    } finally {
+      clearInterval(interval);
+    }
   }
 
   function handleDrop(e){
@@ -1043,9 +1207,9 @@ export default function LiveDemo(){
                 transition: "all 0.2s ease",
                 position: "relative"
               }}>
-              <input ref={fileRef} type="file" accept={isRdbms?".csv":".pdf,.txt"} multiple={isRdbms} style={{display:"none"}}
-                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}} disabled={uploadStatus === "uploading"}/>
-              {uploadStatus === "uploading" ? (
+              <input ref={fileRef} type="file" accept={isRdbms?".csv":".pdf,.txt"} multiple style={{display:"none"}}
+                onChange={e=>{[...e.target.files].forEach(addRealFile);e.target.value="";}} disabled={uploadStatus === "uploading" && !isRdbms}/>
+              {uploadStatus === "uploading" && !isRdbms ? (
                 <div>
                   <div className="spinner" style={{
                     width: 24,
@@ -1058,7 +1222,7 @@ export default function LiveDemo(){
                   }} />
                   <div style={{fontSize: 13, fontWeight: 600, color: "#ffd208", fontFamily: "Space Grotesk, sans-serif"}}>Uploading & Indexing...</div>
                   <div style={{fontSize: 11, color: "#999", marginTop: 4, fontFamily: "Space Mono, monospace"}}>
-                    Running C++ NTRU cryptographic setup (takes ~{uploadCountdown}s)
+                    Running C++ ODXT cryptographic setup (takes ~{uploadCountdown}s)
                   </div>
                   <div style={{
                     width: "80%",
@@ -1084,6 +1248,14 @@ export default function LiveDemo(){
                 </>
               )}
             </div>
+
+            
+            {isRdbms && Object.keys(tableData).length>0 && !rdbmsUploadError && (
+              <div style={{fontSize:10,color:uploadStatusByKey[`rdbms-${rdbmsMode}`]==="uploading"?"#ffd208":uploadStatusByKey[`rdbms-${rdbmsMode}`]==="done"?"#4ade80":"#666",fontFamily:"Space Mono,monospace"}}>
+                {uploadStatusByKey[`rdbms-${rdbmsMode}`]==="uploading" ? `Syncing real ${rdbmsMode==="or"?"OR":"AND"} backend (${uploadCountdown}s)...` :
+                 uploadStatusByKey[`rdbms-${rdbmsMode}`]==="done" ? `Real ${rdbmsMode==="or"?"OR":"AND"} backend synced` : ""}
+              </div>
+            )}
 
             {/* Sample list switches based on active tab */}
             <div style={{border:"1px solid #1a1a1a",borderRadius:6,overflow:"hidden"}}>
@@ -1177,6 +1349,9 @@ export default function LiveDemo(){
           backendStatus={backendStatus} uploadStatus={uploadStatus}
           wordToId={wordToId} backendUrl={BACKENDS[backendKey]}
           qtype={qtype} setQtype={setQtype}
+          rdbmsMode={rdbmsMode} setRdbmsMode={setRdbmsMode}
+          rdbmsBackendUrl={BACKENDS[`rdbms-${rdbmsMode}`]}
+          rdbmsBackendStatus={backendStatusByKey[`rdbms-${rdbmsMode}`]}
         />
       </div>
     </div>
