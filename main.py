@@ -216,8 +216,34 @@ def run_binary(binary: str, args: List[str], timeout: int = 60) -> dict:
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
 
+from rdbms_utils.inverted_index import process_csv_uploads, TCVMap, TRMap
+
 @app.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
+    csv_uploads = []
+    doc_uploads = []
+
+    for upload in files:
+        if upload.filename.lower().endswith(".csv"):
+            csv_uploads.append(upload)
+        else:
+            doc_uploads.append(upload)
+
+    rdbms_stats = None
+
+    if csv_uploads:
+        csv_data = []
+        for upload in csv_uploads:
+            file_bytes = await upload.read()
+            text_content = file_bytes.decode("utf-8", errors="ignore")
+            csv_data.append({"filename": upload.filename, "content": text_content})
+        rdbms_stats = process_csv_uploads(csv_data, DATA_DIR)
+        # Copy generated db6k.dat to BASE_DIR for binary setup
+        shutil_dat = os.path.join(DATA_DIR, "db6k.dat")
+        if os.path.exists(shutil_dat):
+            with open(shutil_dat, "r", encoding="utf-8") as sf, open(DAT_PATH, "w", encoding="utf-8") as df:
+                df.write(sf.read())
+
     word_to_id = load_csv_map(WORD_TO_ID_PATH, "word", "id")
     id_to_word = {v: k for k, v in word_to_id.items()}
     doc_to_id  = load_csv_map(DOC_TO_ID_PATH, "doc_name", "id")
@@ -226,7 +252,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
 
     results = []
 
-    for upload in files:
+    for upload in doc_uploads:
         filename   = upload.filename
         file_bytes = await upload.read()
         content    = extract_text(filename, file_bytes)
@@ -257,11 +283,12 @@ async def upload_files(files: List[UploadFile] = File(...)):
             "text":         content,
         })
 
-    save_two_col_csv(WORD_TO_ID_PATH, "word",     "id",       word_to_id)
-    save_two_col_csv(ID_TO_WORD_PATH, "id",       "word",     id_to_word)
-    save_two_col_csv(DOC_TO_ID_PATH,  "doc_name", "id",       doc_to_id)
-    save_two_col_csv(ID_TO_DOC_PATH,  "id",       "doc_name", id_to_doc)
-    save_inverted_index(inv_index)
+    if doc_uploads:
+        save_two_col_csv(WORD_TO_ID_PATH, "word",     "id",       word_to_id)
+        save_two_col_csv(ID_TO_WORD_PATH, "id",       "word",     id_to_word)
+        save_two_col_csv(DOC_TO_ID_PATH,  "doc_name", "id",       doc_to_id)
+        save_two_col_csv(ID_TO_DOC_PATH,  "id",       "doc_name", id_to_doc)
+        save_inverted_index(inv_index)
 
     setup_result = None
     setup_error  = None
@@ -275,6 +302,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
     return {
         "status":                 "success",
         "processed":              results,
+        "rdbms":                  rdbms_stats,
         "total_words_in_vocab":   len(word_to_id),
         "total_docs_indexed":     len(doc_to_id),
         "inverted_index_entries": len(inv_index),
@@ -282,6 +310,7 @@ async def upload_files(files: List[UploadFile] = File(...)):
         "setup":                  setup_result,
         "setup_error":            setup_error,
     }
+
 
 
 @app.get("/debug/last-run")
@@ -356,7 +385,7 @@ def conjunctive_search(req: ConjunctiveRequest):
 
 @app.get("/download/{filename}")
 def download_file(filename: str):
-    allowed = {"word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv"}
+    allowed = {"word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv", "tcv_to_id.csv", "id_to_tcv.csv", "tr_to_id.csv", "id_to_tr.csv"}
     if filename not in allowed:
         return JSONResponse(status_code=404, content={"error": "Not found"})
     path = os.path.join(DATA_DIR, filename)
@@ -367,7 +396,7 @@ def download_file(filename: str):
 
 @app.delete("/reset")
 def reset():
-    for f in ["word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv"]:
+    for f in ["word_to_id.csv", "id_to_word.csv", "doc_to_id.csv", "id_to_doc.csv", "inverted_index.csv", "tcv_to_id.csv", "id_to_tcv.csv", "tr_to_id.csv", "id_to_tr.csv"]:
         p = os.path.join(DATA_DIR, f)
         if os.path.exists(p):
             os.remove(p)
@@ -376,6 +405,7 @@ def reset():
     cleanup_stale_binary_state()
     _last_run.clear()
     return {"status": "reset complete"}
+
 
 
 if __name__ == "__main__":

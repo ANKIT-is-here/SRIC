@@ -305,3 +305,76 @@ def tcv_to_id(table: str, column: str, value: str, out_dir: str):
     out = Path(out_dir)
     tcv_map = TCVMap(); tcv_map.load(out)
     return tcv_map.lookup(table, column, value)
+
+
+def process_csv_uploads(files_data: list, out_dir: str) -> dict:
+    """
+    Given a list of dicts [{'filename': 'employees.csv', 'content': '...'}]
+    builds/updates the TCV and TR maps and inverted index,
+    saves tcv_to_id.csv, id_to_tcv.csv, tr_to_id.csv, id_to_tr.csv, inverted_index.csv,
+    and db6k.dat.
+    """
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    tcv_map = TCVMap(); tcv_map.load(out)
+    tr_map  = TRMap();  tr_map.load(out)
+    index   = load_inv_csv(out / INV_CSV_FILE)
+
+    processed_tables = []
+    total_postings = 0
+
+    for item in files_data:
+        filename = item["filename"]
+        content = item["content"]
+        table_name = Path(filename).stem.lower()
+
+        lines = [line for line in content.replace("\r\n", "\n").replace("\r", "\n").split("\n") if line.strip()]
+        if not lines:
+            continue
+
+        reader = csv.reader(lines)
+        headers = [h.strip() for h in next(reader, [])]
+        if not headers:
+            continue
+
+        rows = list(reader)
+
+        for ri, row in enumerate(rows):
+            if not row:
+                continue
+            tr_id = tr_map.get_or_create(table_name, ri)
+            for ci, val in enumerate(row):
+                if ci < len(headers):
+                    col = headers[ci]
+                    norm_val = normalise(val)
+                    tcv_id = tcv_map.get_or_create(table_name, col, norm_val)
+                    index.setdefault(tcv_id, set()).add(tr_id)
+                    total_postings += 1
+
+        processed_tables.append({"table": table_name, "rows": len(rows), "cols": len(headers), "headers": headers})
+
+    tcv_map.save(out)
+    tr_map.save(out)
+    save_inv_csv(out / INV_CSV_FILE, index)
+    
+    # Save clean db6k.dat (without trailing comma) in out_dir
+    dat_path = out / DAT_FILE
+    with dat_path.open("w", encoding="utf-8") as f:
+        for tcv_id, tr_ids in sorted(index.items()):
+            f.write(",".join([tcv_id] + sorted(tr_ids)) + "\n")
+
+    write_inv_txt(out / INV_TXT_FILE, index, tcv_map, tr_map)
+
+    schema = {}
+    for pt in processed_tables:
+        schema[pt["table"]] = pt["headers"]
+
+    return {
+        "tables": processed_tables,
+        "schema": schema,
+        "total_postings": total_postings,
+        "unique_tcv": len(tcv_map._to_id),
+        "unique_tr": len(tr_map._to_id),
+        "index_entries": len(index),
+    }

@@ -420,11 +420,13 @@ const EXP = {
   "regular-single": "Looks up every document tagged with this keyword in a plain plaintext index. No encryption. Timing is real JS set lookup time.",
   "regular-and":    "Intersects posting lists for each keyword. Only documents present in every list are returned. Timing is real JS intersection time.",
   "regular-or":     "Unions posting lists for each keyword. Any document present in at least one list is returned. Timing is real JS union time.",
-  "regular-rdbms":  "Each CSV file becomes a table. The index uses the same TCV and TR ID structure as inverted_index.py. Filters follow the /search endpoint shape. Timing is real JS set intersection time.",
+  "regular-rdbms-and": "Conjunctive (AND) query over relational CSV tables in plaintext. Matches rows satisfying all filter conditions.",
+  "regular-rdbms-or":  "Disjunctive (OR) query over relational CSV tables in plaintext. Matches rows satisfying any filter condition.",
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
   "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
-  "sse-rdbms":      "Same CSV conjunctive search as Regular RDBMS, shown as a direct comparison. RDBMS finds rows in plaintext. SSE does the equivalent search over encrypted data.",
+  "sse-rdbms-and":  "Runs compiled C++ SSE binary (ntru-oqxt-search) on Port 8000 over the encrypted TSet/XSet index built from the relational CSV posting list (TCV -> TR).",
+  "sse-rdbms-or":   "Runs compiled C++ ODXT SSE binary (odxt-cli search) on Port 8001 over the encrypted index built from the relational CSV posting list (TCV -> TR).",
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -519,32 +521,142 @@ function FilterRow({filter,idx,schema,tableData,onUpdate,onRemove}){
 
 // ── RDBMS panel ────────────────────────────────────────────────────────────────
 function RDBMSPanel({mode,tableData,dbIndex}){
+  const [rdbmsSubtype,setRdbmsSubtype]=useState("and");
   const [filters,setFilters]=useState([{table:"",column:"",value:""}]);
   const [result,setResult]=useState(null);
+  const [busy,setBusy]=useState(false);
+
   const schema=Object.fromEntries(Object.entries(tableData).map(([n,{headers}])=>[n,headers]));
   const hasTables=Object.keys(tableData).length>0;
+
   function updateFilter(i,f){const fs=[...filters];fs[i]=f;setFilters(fs);}
   function removeFilter(i){setFilters(filters.filter((_,j)=>j!==i));}
-  function handleSearch(){
+
+  async function handleSearch(){
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
-    // Build array of (tcvId, filter) pairs — we need to keep the filter alongside the tcvId
-    // so the cross-table join knows which tcvId belongs to which table
+
     const tcvPairs=active.map(f=>({f,id:dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))}));
     const tcvIds=tcvPairs.map(p=>p.id).filter(Boolean);
-    // Re-map active filters to only those that resolved to a valid tcvId
     const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
-    const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
-    const ms=performance.now()-t0;
-    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing});
+
+    if(!tcvIds.length){
+      setResult({hits:[],ms:0,tcvIds:[],wordLabels:[],missing:active});
+      return;
+    }
+
+    if(mode==="regular"){
+      const t0=performance.now();
+      let hits=[],missing=[];
+      if(rdbmsSubtype==="and"){
+        const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+        hits=res.hits; missing=res.missing;
+      } else {
+        const unionTrIds=new Set();
+        for(const id of tcvIds){
+          if(dbIndex.idx.has(id)){
+            for(const trid of dbIndex.idx.get(id))unionTrIds.add(trid);
+          }
+        }
+        hits=resolveTrIds(unionTrIds,dbIndex.tr);
+      }
+      const ms=performance.now()-t0;
+      const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+      setResult({
+        hits:hydrated,
+        ms,
+        tcvIds,
+        wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),
+        missing,
+        binaryOutput:null
+      });
+    } else {
+      setBusy(true);
+      setResult(null);
+      const port=rdbmsSubtype==="or"?BACKEND_PORTS.or:BACKEND_PORTS.single;
+      const backendUrl=getBackendUrl(port);
+
+      try{
+        const wordLabels=resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`);
+        const conjRes=await fetch(`${backendUrl}/conjunctive-search`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({word_ids:tcvIds,words:wordLabels}),
+        });
+
+        if(!conjRes.ok){
+          const err=await conjRes.json().catch(()=>({}));
+          throw new Error(err.detail||`SSE search failed on port ${port}: ${conjRes.status}`);
+        }
+
+        const conjData=await conjRes.json();
+        const output=conjData.output||"";
+        const timeMatch=output.match(/Search time = (\d+) micro-seconds/);
+        const timingUs=timeMatch?parseInt(timeMatch[1]):null;
+        const timingMs=timingUs?timingUs/1000:(conjData.time_taken??0);
+
+        let hits=[];
+        if(rdbmsSubtype==="and"){
+          const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+          hits=res.hits;
+        } else {
+          const unionTrIds=new Set();
+          for(const id of tcvIds){
+            if(dbIndex.idx.has(id)){
+              for(const trid of dbIndex.idx.get(id))unionTrIds.add(trid);
+            }
+          }
+          hits=resolveTrIds(unionTrIds,dbIndex.tr);
+        }
+
+        const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+
+        setResult({
+          hits:hydrated,
+          ms:timingMs,
+          timingUs,
+          tcvIds,
+          wordLabels,
+          missing:[],
+          binaryOutput:output,
+          port
+        });
+      }catch(e){
+        setResult({error:e.message,hits:[],ms:0,tcvIds:[],wordLabels:[],missing:[]});
+      }finally{
+        setBusy(false);
+      }
+    }
   }
-  const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
+
+  const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value)&&!busy;
+
   return(
     <div>
-      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>{EXP[`${mode}-rdbms`]}</div>
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {[["and","Conjunction (AND) - Port 8000"],["or","Disjunction (OR) - Port 8001"]].map(([subId,label])=>(
+          <button key={subId} onClick={()=>{setRdbmsSubtype(subId);setResult(null);}}
+            style={{
+              padding:"7px 14px",
+              borderRadius:20,
+              fontSize:11,
+              fontFamily:"Space Mono,monospace",
+              cursor:"pointer",
+              background:rdbmsSubtype===subId?"#ffd20815":"transparent",
+              color:rdbmsSubtype===subId?"#ffd208":"#888",
+              border:`1px solid ${rdbmsSubtype===subId?"#ffd20844":"#1a1a1a"}`,
+              transition:"all 0.15s"
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>
+        {EXP[`${mode}-rdbms-${rdbmsSubtype}`]||EXP[`${mode}-rdbms`]}
+      </div>
+
       {!hasTables?(
         <div style={{fontSize:12,color:"#555",fontFamily:"Space Mono,monospace",padding:"16px 0"}}>Load a CSV from the sample list or upload one above.</div>
       ):(
@@ -560,7 +672,9 @@ function RDBMSPanel({mode,tableData,dbIndex}){
             </div>
           )}
           <div style={{marginBottom:12}}>
-            <div style={{fontSize:9,color:"#666",fontFamily:"Space Mono,monospace",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Filters (table, column, value)</div>
+            <div style={{fontSize:9,color:"#666",fontFamily:"Space Mono,monospace",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>
+              Filters (table, column, value) — Mode: {rdbmsSubtype==="and"?"Conjunction (AND)":"Disjunction (OR)"}
+            </div>
             {filters.map((f,i)=><FilterRow key={i} filter={f} idx={i} schema={schema} tableData={tableData} onUpdate={updateFilter} onRemove={removeFilter}/>)}
             <button onClick={()=>setFilters([...filters,{table:"",column:"",value:""}])}
               style={{padding:"5px 12px",background:"transparent",border:"1px solid #1a1a1a",borderRadius:4,color:"#666",cursor:"pointer",fontSize:10,fontFamily:"Space Mono,monospace",transition:"all 0.15s"}}
@@ -568,17 +682,39 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a1a1a";e.currentTarget.style.color="#666";}}>+ add filter</button>
           </div>
           <button onClick={handleSearch} disabled={!canSearch}
-            style={{padding:"10px 22px",borderRadius:6,fontWeight:700,fontSize:13,background:canSearch?"#ffd208":"#1a1a1a",color:canSearch?"#0a0a0a":"#555",border:"none",cursor:canSearch?"pointer":"default",marginBottom:result?16:0}}>
-            Run Query
+            style={{
+              padding:"10px 22px",
+              borderRadius:6,
+              fontWeight:700,
+              fontSize:13,
+              background:canSearch?"#ffd208":"#1a1a1a",
+              color:canSearch?"#0a0a0a":"#555",
+              border:"none",
+              cursor:canSearch?"pointer":"default",
+              marginBottom:result?16:0
+            }}>
+            {busy?"Executing SSE Binary Search...":`Run ${rdbmsSubtype.toUpperCase()} Query (${mode.toUpperCase()})`}
           </button>
         </>
       )}
-      {result&&(
+
+      {result&&result.error&&(
+        <div style={{fontSize:11,color:"#f87171",fontFamily:"Space Mono,monospace",marginTop:16,padding:"8px 12px",background:"#1a0a0a",border:"1px solid #f8717133",borderRadius:4}}>
+          Error: {result.error}
+        </div>
+      )}
+
+      {result&&!result.error&&(
         <div style={{borderTop:"1px solid #1a1a1a",paddingTop:16,marginTop:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
-            <div style={{fontSize:12,color:"#ccc"}}>{result.hits.length?`${result.hits.length} row${result.hits.length>1?"s":""} matched`:"No rows matched"}</div>
+            <div style={{fontSize:12,color:"#ccc"}}>
+              {result.hits.length?`${result.hits.length} row${result.hits.length>1?"s":""} matched`:"No rows matched"}
+              {result.port&&<span style={{fontSize:10,color:"#666",marginLeft:8,fontFamily:"Space Mono,monospace"}}>(backend port :{result.port})</span>}
+            </div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>{result.ms.toFixed(3)} ms</div>
+              <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>
+                {result.timingUs?`${result.timingUs} µs (${result.ms.toFixed(3)} ms)`:`${result.ms.toFixed(3)} ms`}
+              </div>
               {result.hits.length>0&&(
                 <button onClick={()=>{
                   const g={};result.hits.forEach(h=>{if(!g[h.tbl])g[h.tbl]=[];g[h.tbl].push(h);});
@@ -592,6 +728,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               )}
             </div>
           </div>
+
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
             {result.tcvIds.map((id,i)=>(
               <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:"#ffd208",background:"#ffd20810",border:"1px solid #ffd20833",borderRadius:4,padding:"3px 8px"}}>
@@ -599,8 +736,15 @@ function RDBMSPanel({mode,tableData,dbIndex}){
               </span>
             ))}
           </div>
+
+          {result.binaryOutput&&(
+            <div style={{marginBottom:14,padding:"8px 12px",background:"#050505",border:"1px solid #1a1a1a",borderRadius:4,fontFamily:"Space Mono,monospace",fontSize:10,color:"#777"}}>
+              <div style={{color:"#ffd208",marginBottom:4,fontWeight:600}}>⚡ Real C++ Binary Stdout (Port :{result.port}):</div>
+              <pre style={{margin:0,whiteSpace:"pre-wrap",color:"#aaa"}}>{result.binaryOutput}</pre>
+            </div>
+          )}
+
           {result.hits.length>0&&(()=>{
-            // Group hits by table so each table gets its own header row
             const groups={};
             result.hits.forEach(h=>{if(!groups[h.tbl])groups[h.tbl]=[];groups[h.tbl].push(h);});
             const TABLE_COLORS={employees:"#ffd208",employee2:"#4ade80",products:"#60a5fa",orders:"#f97316"};
@@ -632,7 +776,6 @@ function RDBMSPanel({mode,tableData,dbIndex}){
                     </table>
                   </div>
                 ))}
-                {result.hits.length>50&&<div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace"}}>showing first 50 of {result.hits.length} rows</div>}
               </div>
             );
           })()}
@@ -641,6 +784,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
     </div>
   );
 }
+
 
 // ── Search console ──────────────────────────────────────────────────────────────
 const QTYPES = [["single","Single Term"],["and","Conjunction (AND)"],["or","Disjunction (OR)"],["rdbms","RDBMS Query"]];
