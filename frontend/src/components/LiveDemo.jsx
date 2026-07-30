@@ -489,12 +489,8 @@ const EXP = {
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
   "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
-<<<<<<< Updated upstream
-  "sse-rdbms":      "Filters are sent as plaintext (table,column,value) to POST /search on the real RDBMS-AND or RDBMS-OR backend (whichever sub-tab is active), which resolves them to TCV ids server-side and runs the actual ntru-oqxt-search or odxt-cli binary. Row content shown is the client's own locally-fetched copy, same as the doc-based tabs - the binary's raw stdout (below) is what's real about this panel.",
-=======
   "sse-rdbms-and":  "Runs compiled C++ SSE binary (ntru-oqxt-search) over the encrypted TSet/XSet index built from the relational CSV posting list (TCV -> TR).",
   "sse-rdbms-or":   "Runs compiled C++ ODXT SSE binary (odxt-cli search) over the encrypted index built from the relational CSV posting list (TCV -> TR).",
->>>>>>> Stashed changes
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -616,20 +612,6 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
     setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing,binary:null,binaryPending:mode==="sse"&&backendStatus==="online"});
     setSearching(false);
 
-<<<<<<< Updated upstream
-    if(mode==="sse"&&backendStatus==="online"){
-      // Fire-and-forget: whatever the binary does (succeeds, crashes,
-      // times out) only ever updates the already-visible result in place,
-      // never blocks or re-triggers the "searching" state.
-      const backendFilters=active.map(f=>({...f, table:sanitizeIdent(f.table), column:sanitizeIdent(f.column)}));
-      fetch(`${backendUrl}/search`,{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({filters:backendFilters})
-      })
-        .then(res=>res.json())
-        .then(binary=>setResult(prev=>prev?{...prev,binary,binaryPending:false}:prev))
-        .catch(e=>setResult(prev=>prev?{...prev,binary:{error:e.message},binaryPending:false}:prev));
-=======
     if(mode==="regular"){
       const t0=performance.now();
       let hits=[],missing=[];
@@ -718,20 +700,11 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
       }finally{
         setBusy(false);
       }
->>>>>>> Stashed changes
     }
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
     <div>
-<<<<<<< Updated upstream
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["and","AND"],["or","OR"]].map(([m,label])=>(
-          <button key={m} onClick={()=>{setRdbmsMode(m);setResult(null);}}
-            style={{padding:"5px 14px",borderRadius:5,fontSize:11,fontWeight:700,fontFamily:"Space Mono,monospace",
-              background:rdbmsMode===m?"#ffd208":"transparent",color:rdbmsMode===m?"#0a0a0a":"#666",
-              border:`1px solid ${rdbmsMode===m?"#ffd208":"#1a1a1a"}`,cursor:"pointer"}}>
-=======
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         {[["and","Conjunction (AND)"],["or","Disjunction (OR)"]].map(([subId,label])=>(
           <button key={subId} onClick={()=>{setRdbmsSubtype(subId);setResult(null);}}
@@ -746,7 +719,6 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
               border:`1px solid ${rdbmsSubtype===subId?"#ffd20844":"#1a1a1a"}`,
               transition:"all 0.15s"
             }}>
->>>>>>> Stashed changes
             {label}
           </button>
         ))}
@@ -836,9 +808,6 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
               </span>
             ))}
           </div>
-<<<<<<< Updated upstream
-=======
-
           {mode==="sse"&&(
             <div style={{display:"flex",gap:20,marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6}}>
               {[
@@ -861,8 +830,6 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
               <pre style={{margin:0,whiteSpace:"pre-wrap",color:"#aaa"}}>{result.binaryOutput}</pre>
             </div>
           )}
-
->>>>>>> Stashed changes
           {result.hits.length>0&&(()=>{
             // Group hits by table so each table gets its own header row
             const groups={};
