@@ -489,7 +489,12 @@ const EXP = {
   "sse-single":     "TSet_GetTag derives the encrypted tag. TSet_Retrieve walks the encrypted posting chain. NWords=0, so no XToken or bloom filter check runs. This is the NWords=0 branch in EDB_Search. Word IDs are resolved from a local cache so the server never sees plaintext keywords. Timing is from ntru-oqxt-search stdout.",
   "sse-and":        "First keyword is the s-term, matching how main() passes query_str. TSet_Retrieve runs on the s-term first. For each candidate, XToken and XTag are computed for every x-term and checked via BloomFilter_Match_N. Word IDs resolved locally. Timing is from ntru-oqxt-search stdout.",
   "sse-or":         "Runs on a separate ODXT backend. Every keyword ID is bucketized into ODXT's meta-keywords (mkws). Within each bucket, the mkw with the fewest prior updates is retrieved first via TSet_Retrieve, then results are unioned across all buckets - i.e. across all queried keywords - giving disjunctive (OR) semantics. Word IDs resolved locally. Timing is from odxt-cli stdout.",
+<<<<<<< Updated upstream
   "sse-rdbms":      "Filters are sent as plaintext (table,column,value) to POST /search on the real RDBMS-AND or RDBMS-OR backend (whichever sub-tab is active), which resolves them to TCV ids server-side and runs the actual ntru-oqxt-search or odxt-cli binary. Row content shown is the client's own locally-fetched copy, same as the doc-based tabs - the binary's raw stdout (below) is what's real about this panel.",
+=======
+  "sse-rdbms-and":  "Runs compiled C++ SSE binary (ntru-oqxt-search) over the encrypted TSet/XSet index built from the relational CSV posting list (TCV -> TR).",
+  "sse-rdbms-or":   "Runs compiled C++ ODXT SSE binary (odxt-cli search) over the encrypted index built from the relational CSV posting list (TCV -> TR).",
+>>>>>>> Stashed changes
 };
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
@@ -611,6 +616,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
     setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing,binary:null,binaryPending:mode==="sse"&&backendStatus==="online"});
     setSearching(false);
 
+<<<<<<< Updated upstream
     if(mode==="sse"&&backendStatus==="online"){
       // Fire-and-forget: whatever the binary does (succeeds, crashes,
       // times out) only ever updates the already-visible result in place,
@@ -623,17 +629,124 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
         .then(res=>res.json())
         .then(binary=>setResult(prev=>prev?{...prev,binary,binaryPending:false}:prev))
         .catch(e=>setResult(prev=>prev?{...prev,binary:{error:e.message},binaryPending:false}:prev));
+=======
+    if(mode==="regular"){
+      const t0=performance.now();
+      let hits=[],missing=[];
+      if(rdbmsSubtype==="and"){
+        const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+        hits=res.hits; missing=res.missing;
+      } else {
+        const unionTrIds=new Set();
+        for(const id of tcvIds){
+          if(dbIndex.idx.has(id)){
+            for(const trid of dbIndex.idx.get(id))unionTrIds.add(trid);
+          }
+        }
+        hits=resolveTrIds(unionTrIds,dbIndex.tr);
+      }
+      const ms=performance.now()-t0;
+      const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+      setResult({
+        hits:hydrated,
+        ms,
+        tcvIds,
+        wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),
+        missing,
+        binaryOutput:null
+      });
+    } else {
+      setBusy(true);
+      setResult(null);
+      const port=rdbmsSubtype==="or"?BACKEND_PORTS.or:BACKEND_PORTS.single;
+      const backendUrl=getBackendUrl(port);
+
+      try{
+        const wordLabels=resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`);
+        const conjRes=await fetch(`${backendUrl}/conjunctive-search`,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({word_ids:tcvIds,words:wordLabels}),
+        });
+
+        if(!conjRes.ok){
+          const err=await conjRes.json().catch(()=>({}));
+          throw new Error(err.detail||`SSE search failed on port ${port}: ${conjRes.status}`);
+        }
+
+        const conjData=await conjRes.json();
+        const output=conjData.output||"";
+        const timeMatch=output.match(/Search time = (\d+) micro-seconds/);
+        const nmatchMatch=output.match(/Nmatch: (\d+)/);
+        const ntsetMatch=output.match(/N IDs TSet: (\d+)/);
+        const timingUs=timeMatch?parseInt(timeMatch[1]):null;
+        const timingMs=timingUs?timingUs/1000:(conjData.time_taken??0);
+        const nmatch=nmatchMatch?parseInt(nmatchMatch[1]):null;
+        const ntset=ntsetMatch?parseInt(ntsetMatch[1]):null;
+
+        let hits=[];
+        if(rdbmsSubtype==="and"){
+          const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+          hits=res.hits;
+        } else {
+          const unionTrIds=new Set();
+          for(const id of tcvIds){
+            if(dbIndex.idx.has(id)){
+              for(const trid of dbIndex.idx.get(id))unionTrIds.add(trid);
+            }
+          }
+          hits=resolveTrIds(unionTrIds,dbIndex.tr);
+        }
+
+        const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
+
+        setResult({
+          hits:hydrated,
+          ms:timingMs,
+          timingUs,
+          timeTakenMs: conjData.time_taken ?? null,
+          nmatch,
+          ntset,
+          tcvIds,
+          wordLabels,
+          missing:[],
+          binaryOutput:output,
+          port
+        });
+      }catch(e){
+        setResult({error:e.message,hits:[],ms:0,tcvIds:[],wordLabels:[],missing:[]});
+      }finally{
+        setBusy(false);
+      }
+>>>>>>> Stashed changes
     }
   }
   const canSearch=dbIndex&&filters.some(f=>f.table&&f.column&&f.value);
   return(
     <div>
+<<<<<<< Updated upstream
       <div style={{display:"flex",gap:6,marginBottom:14}}>
         {[["and","AND"],["or","OR"]].map(([m,label])=>(
           <button key={m} onClick={()=>{setRdbmsMode(m);setResult(null);}}
             style={{padding:"5px 14px",borderRadius:5,fontSize:11,fontWeight:700,fontFamily:"Space Mono,monospace",
               background:rdbmsMode===m?"#ffd208":"transparent",color:rdbmsMode===m?"#0a0a0a":"#666",
               border:`1px solid ${rdbmsMode===m?"#ffd208":"#1a1a1a"}`,cursor:"pointer"}}>
+=======
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {[["and","Conjunction (AND)"],["or","Disjunction (OR)"]].map(([subId,label])=>(
+          <button key={subId} onClick={()=>{setRdbmsSubtype(subId);setResult(null);}}
+            style={{
+              padding:"7px 14px",
+              borderRadius:20,
+              fontSize:11,
+              fontFamily:"Space Mono,monospace",
+              cursor:"pointer",
+              background:rdbmsSubtype===subId?"#ffd20815":"transparent",
+              color:rdbmsSubtype===subId?"#ffd208":"#888",
+              border:`1px solid ${rdbmsSubtype===subId?"#ffd20844":"#1a1a1a"}`,
+              transition:"all 0.15s"
+            }}>
+>>>>>>> Stashed changes
             {label}
           </button>
         ))}
@@ -723,6 +836,33 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
               </span>
             ))}
           </div>
+<<<<<<< Updated upstream
+=======
+
+          {mode==="sse"&&(
+            <div style={{display:"flex",gap:20,marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6}}>
+              {[
+                ["N IDs TSet",  result.ntset       ?? "-"],
+                ["Nmatch",       result.nmatch      ?? "-"],
+                ["Binary time",  result.timingUs    != null ? `${result.timingUs.toLocaleString()} us` : "-"],
+                ["Total (incl. overhead)", result.timeTakenMs != null ? `${result.timeTakenMs} ms` : "-"],
+              ].map(([k,v])=>(
+                <div key={k} style={{fontFamily:"Space Mono,monospace",fontSize:10}}>
+                  <div style={{color:"#ffd208",fontWeight:700,fontSize:13}}>{v}</div>
+                  <div style={{color:"#555",marginTop:2}}>{k}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {result.binaryOutput&&(
+            <div style={{marginBottom:14,padding:"8px 12px",background:"#050505",border:"1px solid #1a1a1a",borderRadius:4,fontFamily:"Space Mono,monospace",fontSize:10,color:"#777"}}>
+              <div style={{color:"#ffd208",marginBottom:4,fontWeight:600}}>[C++] Real Binary Stdout:</div>
+              <pre style={{margin:0,whiteSpace:"pre-wrap",color:"#aaa"}}>{result.binaryOutput}</pre>
+            </div>
+          )}
+
+>>>>>>> Stashed changes
           {result.hits.length>0&&(()=>{
             // Group hits by table so each table gets its own header row
             const groups={};
@@ -734,7 +874,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
                 {Object.entries(groups).map(([tbl,rows])=>(
                   <div key={tbl} style={{overflowX:"auto",border:`1px solid ${getColor(tbl)}22`,borderRadius:6}}>
                     <div style={{padding:"6px 12px",background:`${getColor(tbl)}11`,borderBottom:`1px solid ${getColor(tbl)}33`,fontFamily:"Space Mono,monospace",fontSize:10,color:getColor(tbl),fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
-                      📋 {tbl} — {rows.length} row{rows.length>1?"s":""}
+                      [Table] {tbl} — {rows.length} row{rows.length>1?"s":""}
                     </div>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,fontFamily:"Space Mono,monospace"}}>
                       <thead><tr>
@@ -994,7 +1134,7 @@ export default function LiveDemo(){
   const [uploadStatusByKey,setUploadStatusByKey]   = useState({primary:"idle", or:"idle", "rdbms-and":"idle", "rdbms-or":"idle"});
   const [uploadCountdown,setUploadCountdown] = useState(15);
   const [dropActive,setDropActive]         = useState(false);
-  const [libOpen,setLibOpen]               = useState(true);
+  const [libOpen,setLibOpen]               = useState(false);
   const [qtype,setQtype]                   = useState("single");
   const [rdbmsMode,setRdbmsMode]           = useState("and");
   const [rdbmsUploadError,setRdbmsUploadError] = useState(null);

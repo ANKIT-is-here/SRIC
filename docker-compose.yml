@@ -1,39 +1,42 @@
+networks:
+  sse-network:
+    external: true
+    name: sse-network
+
 services:
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
+    container_name: sse-redis
+    networks:
+      - sse-network
     restart: unless-stopped
 
-  backend:
+  sric-backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    container_name: sric-backend
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-    command: >
-      sh -c "make ntru-oqxt-setup && make ntru-oqxt-search && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=sse-redis
+      - ODXT_URL=http://odxt-backend:8001
+    networks:
+      - sse-network
     depends_on:
       - redis
     restart: unless-stopped
-    # We expose the API on 8000 which the frontend can reach directly
 
-  frontend:
+  sric-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend
       target: development
+    container_name: sric-frontend
     ports:
       - "3000:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_PROXY_TARGET=http://backend:8000
+    networks:
+      - sse-network
     depends_on:
-      - backend
+      - sric-backend
     restart: unless-stopped

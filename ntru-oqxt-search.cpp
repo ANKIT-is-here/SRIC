@@ -1534,7 +1534,7 @@ int EDB_Search(unsigned char *query_str, int NWords)
 
     bf_n_indices = new unsigned int *[N_HASH];
     for(unsigned int i=0;i<N_HASH;++i){
-        bf_n_indices[i] = new unsigned int [NWords];
+        bf_n_indices[i] = new unsigned int [NWords > 0 ? NWords : 1];
     }
 
 

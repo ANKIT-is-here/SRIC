@@ -613,7 +613,7 @@ export default function TryYourOwnFiles() {
                             }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                                  📄 {doc.doc_name}
+                                  {doc.doc_name}
                                 </span>
                                 <span className="text-mono" style={{ 
                                   fontSize: 10, 
