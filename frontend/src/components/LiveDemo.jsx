@@ -615,7 +615,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
     if(mode==="regular"){
       const t0=performance.now();
       let hits=[],missing=[];
-      if(rdbmsSubtype==="and"){
+      if(rdbmsMode==="and"){
         const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
         hits=res.hits; missing=res.missing;
       } else {
@@ -638,9 +638,9 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
         binaryOutput:null
       });
     } else {
-      setBusy(true);
+      setSearching(true);
       setResult(null);
-      const port=rdbmsSubtype==="or"?BACKEND_PORTS.or:BACKEND_PORTS.single;
+      const port=rdbmsMode==="or"?BACKEND_PORTS.or:BACKEND_PORTS.single;
       const backendUrl=getBackendUrl(port);
 
       try{
@@ -667,7 +667,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
         const ntset=ntsetMatch?parseInt(ntsetMatch[1]):null;
 
         let hits=[];
-        if(rdbmsSubtype==="and"){
+        if(rdbmsMode==="and"){
           const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
           hits=res.hits;
         } else {
@@ -698,7 +698,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
       }catch(e){
         setResult({error:e.message,hits:[],ms:0,tcvIds:[],wordLabels:[],missing:[]});
       }finally{
-        setBusy(false);
+        setSearching(false);
       }
     }
   }
@@ -707,16 +707,16 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
     <div>
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         {[["and","Conjunction (AND)"],["or","Disjunction (OR)"]].map(([subId,label])=>(
-          <button key={subId} onClick={()=>{setRdbmsSubtype(subId);setResult(null);}}
+          <button key={subId} onClick={()=>{setRdbmsMode(subId);setResult(null);}}
             style={{
               padding:"7px 14px",
               borderRadius:20,
               fontSize:11,
               fontFamily:"Space Mono,monospace",
               cursor:"pointer",
-              background:rdbmsSubtype===subId?"#ffd20815":"transparent",
-              color:rdbmsSubtype===subId?"#ffd208":"#888",
-              border:`1px solid ${rdbmsSubtype===subId?"#ffd20844":"#1a1a1a"}`,
+              background:rdbmsMode===subId?"#ffd20815":"transparent",
+              color:rdbmsMode===subId?"#ffd208":"#888",
+              border:`1px solid ${rdbmsMode===subId?"#ffd20844":"#1a1a1a"}`,
               transition:"all 0.15s"
             }}>
             {label}
@@ -726,7 +726,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
           {rdbmsMode==="and"?"rows matching every filter":"rows matching any filter"} — backend on {backendUrl}
         </div>
       </div>
-      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>{EXP[`${mode}-rdbms`]}</div>
+      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>{EXP[`${mode}-rdbms-${rdbmsMode}`] || EXP[`${mode}-rdbms`]}</div>
       {!hasTables?(
         <div style={{fontSize:12,color:"#555",fontFamily:"Space Mono,monospace",padding:"16px 0"}}>Load a CSV from the sample list or upload one above.</div>
       ):(
@@ -894,7 +894,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
     if(mode==="regular"){
       setResult({type:"regular",qtype,...regularSearch(qtype,t,indexedKws),terms:t});
     } else {
-      setBusy(true); setResult(null);
+      setSearching(true); setResult(null);
       setSearchCountdown(4);
       const interval = setInterval(() => {
         setSearchCountdown(prev => (prev > 1 ? prev - 1 : 1));
@@ -906,7 +906,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
         setResult({type:"sse",qtype,ok:false,error:e.message,terms:t});
       } finally {
         clearInterval(interval);
-        setBusy(false);
+        setSearching(false);
       }
     }
   }
