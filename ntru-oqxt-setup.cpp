@@ -1,3 +1,4 @@
+#include <sw/redis++/tls.h>
 #include "ntru-oqxt-setup.h"
 
 #define TEMPALLOC
@@ -537,11 +538,13 @@ static sw::redis::ConnectionOptions get_redis_options() {
         }
         auto opts = sw::redis::Uri(url_str).connection_options();
         opts.db = 0;
+#ifdef SEWENEW_REDISPLUSPLUS_TLS_H
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
             opts.tls.verify_mode = 0;
         }
+#endif
         return opts;
     }
     std::string redis_host = trim_str(std::getenv("REDIS_HOST"));

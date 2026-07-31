@@ -1,3 +1,4 @@
+#include <sw/redis++/tls.h>
 #include "ntru-oqxt-setup.h"
 
 #define TEMPALLOC
@@ -1179,11 +1180,13 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
         }
         opts = sw::redis::Uri(url_str).connection_options();
         opts.db = 0;
+#ifdef SEWENEW_REDISPLUSPLUS_TLS_H
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
             opts.tls.verify_mode = 0;
         }
+#endif
     } else {
         std::string redis_host = trim_str(std::getenv("REDIS_HOST"));
         if (redis_host.empty()) redis_host = "127.0.0.1";
@@ -1195,6 +1198,9 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
     string s = HexToStr(GL_MGDB_BIDX,2) + HexToStr(GL_MGDB_JIDX,2) + HexToStr(GL_MGDB_LBL,12);
     
     auto val = redis.get(s);
+    if (!val) {
+        return -1;
+    }
     unsigned char *t_res = reinterpret_cast<unsigned char *>(val->data());
     
 
