@@ -1,6 +1,8 @@
 #ifndef OQXT_FALCON_H
 #define OQXT_FALCON_H
 
+#include <sw/redis++/tls.h>
+
 
 #include <iostream>
 #include <cstring>
