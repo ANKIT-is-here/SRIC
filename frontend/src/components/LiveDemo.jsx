@@ -195,17 +195,22 @@ const getBackendUrl = (port) => {
   return `http://${hostname}:${port}`;
 };
 
-// key -> backend base URL, e.g. {primary: "http://host:8000", or: "http://host:8001"}
+const sanitizeUrl = (url) => url ? url.replace(/\/+$/, "") : url;
+
+const envPrimary = sanitizeUrl(import.meta.env.VITE_BACKEND_URL_PRIMARY);
+const envOr = sanitizeUrl(import.meta.env.VITE_BACKEND_URL_OR);
+
 const BACKENDS = {
-  primary: getBackendUrl(BACKEND_PORTS.single),
-  or: getBackendUrl(BACKEND_PORTS.or),
-  "rdbms-and": getBackendUrl(BACKEND_PORTS["rdbms-and"]),
-  "rdbms-or": getBackendUrl(BACKEND_PORTS["rdbms-or"]),
+  primary: envPrimary || getBackendUrl(BACKEND_PORTS.single),
+  or: envOr || getBackendUrl(BACKEND_PORTS.or),
+  "rdbms-and": envPrimary || getBackendUrl(BACKEND_PORTS["rdbms-and"]),
+  "rdbms-or": envOr || getBackendUrl(BACKEND_PORTS["rdbms-or"]),
 };
 
 async function checkBackend(backendUrl, healthPath="/stats") {
   try {
-    const r = await fetch(`${backendUrl}${healthPath}`, {signal: AbortSignal.timeout(2000)});
+    const cleanUrl = sanitizeUrl(backendUrl);
+    const r = await fetch(`${cleanUrl}${healthPath}`, {signal: AbortSignal.timeout(8000)});
     return r.ok;
   } catch { return false; }
 }
