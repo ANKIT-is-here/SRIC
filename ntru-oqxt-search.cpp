@@ -1157,15 +1157,15 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
     ::memset(GL_MGDB_RES,0x00,(N_threads * ((2*N_l+16)+1)));
 
     const char* env_url = std::getenv("REDIS_URL");
-    std::string r_url;
+    sw::redis::ConnectionOptions opts;
     if (env_url && *env_url) {
-        r_url = env_url;
+        opts = sw::redis::parse_url(env_url);
     } else {
         const char* env_host = std::getenv("REDIS_HOST");
         std::string redis_host = env_host ? env_host : "127.0.0.1";
-        r_url = "tcp://" + redis_host + ":6379";
+        opts = sw::redis::parse_url("tcp://" + redis_host + ":6379");
     }
-    auto redis = Redis(r_url);
+    auto redis = Redis(opts);
     
     string s = HexToStr(GL_MGDB_BIDX,2) + HexToStr(GL_MGDB_JIDX,2) + HexToStr(GL_MGDB_LBL,12);
     
