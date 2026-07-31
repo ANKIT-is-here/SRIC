@@ -529,6 +529,7 @@ static sw::redis::ConnectionOptions get_redis_options() {
         auto opts = sw::redis::Uri(url_str).connection_options();
         if (is_tls) {
             opts.tls.enabled = true;
+            opts.tls.sni = opts.host;
         }
         return opts;
     }

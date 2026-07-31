@@ -1171,6 +1171,7 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
         opts = sw::redis::Uri(url_str).connection_options();
         if (is_tls) {
             opts.tls.enabled = true;
+            opts.tls.sni = opts.host;
         }
     } else {
         const char* env_host = std::getenv("REDIS_HOST");
