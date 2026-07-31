@@ -259,7 +259,7 @@ export default function SSEExplanation() {
         }
 
         .theory-list li::before {
-          content: '✔';
+          content: '\\2713';
           color: var(--accent-cyan);
           font-size: 10px;
         }

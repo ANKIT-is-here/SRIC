@@ -1,0 +1,14 @@
+*env*
+*_env
+.venv
+.venv/
+venv
+venv/
+sse_env
+sse_env/
+node_modules
+node_modules/
+dist
+build
+.git
+.gitignore

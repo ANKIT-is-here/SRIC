@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import AnimatedWorkflow from './AnimatedWorkflow';
 import ParticleNetwork from './ParticleNetwork';
 import MagneticButton from './MagneticButton';
 
@@ -47,31 +46,22 @@ export default function Hero({ onDemo }) {
 
   return (
     <div className="section" style={{ minHeight: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative' }}>
-      {/* <div className="hero-bg" /> */}
       <ParticleNetwork />
       <div className="container" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '60px' }}>
         <div ref={ref} className="fade-up" style={{ textAlign: 'center', maxWidth: 1000, margin: '0 auto' }}>
           <div className="label" style={{ marginBottom: 24, justifyContent: 'center', display: 'flex' }}>SEC / SEAL Lab, IIT Kharagpur</div>
-          <h1 className="heading-xl" style={{ marginBottom: 24 }}>
-            Search <span>{text}<span className="typing-cursor">_</span></span><br />
-            <span className="yellow" style={{ whiteSpace: 'nowrap', fontSize: 'clamp(20px, 5vw, 64px)' }}>Searchable Symmetric Encryption</span>
+          <h1 className="heading-xl" style={{ marginBottom: 24, fontSize: 'clamp(26px, 4.5vw, 54px)', lineHeight: 1.15 }}>
+            Search <span>{text}<span className="typing-cursor" style={{ display: 'inline-block', marginLeft: '2px' }}>_</span></span><br />
+            <span className="yellow" style={{ fontSize: 'clamp(20px, 3.8vw, 50px)' }}>Searchable Symmetric Encryption</span>
           </h1>
           <p className="body-lg" style={{ maxWidth: 600, margin: '0 auto 40px auto' }}>
             Documents live on the server fully encrypted. Powered by Searchable Symmetric Encryption (SSE), search happens without the server ever seeing your query or your files.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-            {/* 
-            <button className="btn btn-primary" onClick={onDemo}>Try the demo</button> 
-            */}
             <MagneticButton>
               <button className="btn btn-primary" onClick={onDemo}>Try the demo</button>
             </MagneticButton>
 
-            {/* 
-            <a href="#how" className="btn btn-ghost" onClick={e => { e.preventDefault(); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
-              See how it works
-            </a>
-            */}
             <MagneticButton strength={30}>
               <a href="#how" className="btn btn-ghost" onClick={e => { e.preventDefault(); document.getElementById('how')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
                 See how it works
@@ -79,14 +69,7 @@ export default function Hero({ onDemo }) {
             </MagneticButton>
           </div>
         </div>
-
-        {/*
-        <div style={{ width: '100%', maxWidth: 1000 }}>
-          <AnimatedWorkflow />
-        </div>
-        */}
       </div>
     </div>
   );
 }
-
