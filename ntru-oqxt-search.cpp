@@ -1149,6 +1149,15 @@ int FPGA_HASH(unsigned char *msg, unsigned char *digest)
     return 0;
 }
 
+static std::string trim_str(const char* raw) {
+    if (!raw) return "";
+    std::string s(raw);
+    size_t start = s.find_first_not_of(" \t\n\r\"'");
+    if (start == std::string::npos) return "";
+    size_t end = s.find_last_not_of(" \t\n\r\"'");
+    return s.substr(start, end - start + 1);
+}
+
 int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, unsigned char *LBL)
 {
     ::memcpy(GL_MGDB_BIDX,BIDX,(N_threads * 2));
@@ -1156,9 +1165,9 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
     ::memcpy(GL_MGDB_LBL,LBL,(N_threads * 12));
     ::memset(GL_MGDB_RES,0x00,(N_threads * ((2*N_l+16)+1)));
 
-    const char* env_url = std::getenv("REDIS_URL");
+    std::string env_url = trim_str(std::getenv("REDIS_URL"));
     sw::redis::ConnectionOptions opts;
-    if (env_url && *env_url) {
+    if (!env_url.empty()) {
         std::string url_str = env_url;
         bool is_tls = false;
         if (url_str.rfind("rediss://", 0) == 0) {
@@ -1170,16 +1179,14 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
         }
         opts = sw::redis::Uri(url_str).connection_options();
         opts.db = 0;
-#ifdef SEWENEW_REDISPLUSPLUS_TLS_H
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
             opts.tls.verify_mode = 0;
         }
-#endif
     } else {
-        const char* env_host = std::getenv("REDIS_HOST");
-        std::string redis_host = env_host ? env_host : "127.0.0.1";
+        std::string redis_host = trim_str(std::getenv("REDIS_HOST"));
+        if (redis_host.empty()) redis_host = "127.0.0.1";
         opts = sw::redis::Uri("redis://" + redis_host + ":6379").connection_options();
         opts.db = 0;
     }
