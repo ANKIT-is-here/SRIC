@@ -48,7 +48,7 @@ WORKDIR /app
 COPY . /app
 
 # Compile the C++ binaries
-RUN make ntru-oqxt-setup && make ntru-oqxt-search
+RUN rm -f ntru-oqxt-setup ntru-oqxt-search && make ntru-oqxt-setup && make ntru-oqxt-search
 
 # Create a virtual environment and install python dependencies
 RUN python3 -m venv /opt/venv
