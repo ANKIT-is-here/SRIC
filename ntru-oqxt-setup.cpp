@@ -517,11 +517,11 @@ sw::redis::ConnectionPoolOptions pool_options;
 static sw::redis::ConnectionOptions get_redis_options() {
     const char* env_url = std::getenv("REDIS_URL");
     if (env_url && std::strlen(env_url) > 0) {
-        return sw::redis::parse_url(env_url);
+        return sw::redis::Uri(env_url).connection_options();
     }
     const char* env_host = std::getenv("REDIS_HOST");
     std::string redis_host = env_host ? env_host : "127.0.0.1";
-    return sw::redis::parse_url("tcp://" + redis_host + ":6379");
+    return sw::redis::Uri("tcp://" + redis_host + ":6379").connection_options();
 }
 
 int Sys_Init()

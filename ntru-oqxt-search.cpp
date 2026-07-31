@@ -1159,11 +1159,11 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
     const char* env_url = std::getenv("REDIS_URL");
     sw::redis::ConnectionOptions opts;
     if (env_url && *env_url) {
-        opts = sw::redis::parse_url(env_url);
+        opts = sw::redis::Uri(env_url).connection_options();
     } else {
         const char* env_host = std::getenv("REDIS_HOST");
         std::string redis_host = env_host ? env_host : "127.0.0.1";
-        opts = sw::redis::parse_url("tcp://" + redis_host + ":6379");
+        opts = sw::redis::Uri("tcp://" + redis_host + ":6379").connection_options();
     }
     auto redis = Redis(opts);
     
