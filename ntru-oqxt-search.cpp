@@ -1170,13 +1170,11 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
         }
         opts = sw::redis::Uri(url_str).connection_options();
         opts.db = 0;
-#ifdef SEWENEW_REDISPLUSPLUS_TLS_H
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
             opts.tls.cacertdir = "/etc/ssl/certs";
         }
-#endif
     } else {
         const char* env_host = std::getenv("REDIS_HOST");
         std::string redis_host = env_host ? env_host : "127.0.0.1";
