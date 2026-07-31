@@ -173,7 +173,7 @@ function rowsToCSV(headers,rows){
 // gets its own port. single/and/rdbms all still run on :8000 exactly as
 // before - only "or" (disjunction, odxt-cli) is new. Adjust ports here if
 // your actual deployment differs; nothing else in the file needs to change.
-const BACKEND_PORTS = { single: 8000, and: 8000, or: 8001, "rdbms-and": 8002, "rdbms-or": 8003 };
+const BACKEND_PORTS = { single: 8000, and: 8000, or: 8001, "rdbms-and": 8000, "rdbms-or": 8001 };
 // single/and share the doc-based backend on 8000; "or" is the doc-based
 // ODXT backend on 8001. RDBMS is a genuinely different backend pair (SQLite
 // ingestion, not word/doc CSVs) with its own AND/OR sub-tab, so it gets two
@@ -596,27 +596,17 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
     if(!dbIndex||!hasTables)return;
     const active=filters.filter(f=>f.table&&f.column&&f.value);
     if(!active.length)return;
-    // Build array of (tcvId, filter) pairs — we need to keep the filter alongside the tcvId
-    // so the cross-table join knows which tcvId belongs to which table
+
     const tcvPairs=active.map(f=>({f,id:dbIndex.tcv.lookup(f.table,f.column,normalise(f.value))}));
     const tcvIds=tcvPairs.map(p=>p.id).filter(Boolean);
-    // Re-map active filters to only those that resolved to a valid tcvId
     const resolvedFilters=tcvPairs.filter(p=>p.id).map(p=>p.f);
-    const t0=performance.now();
-    const{hits,missing}=rdbmsConjSearch(rdbmsMode,tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
-    const ms=performance.now()-t0;
-    const hydrated=hits.map(h=>{const td=tableData[h.tbl];return td?{...h,headers:td.headers,rowData:h.rowData||td.rows[h.ri]||[]}:h;});
-
-    // Real (correct, local) results shown immediately - the demo never
-    // waits on the crypto binary to render an answer.
-    setResult({hits:hydrated,ms,tcvIds,wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),missing,binary:null,binaryPending:mode==="sse"&&backendStatus==="online"});
-    setSearching(false);
+    const wordLabels=resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`);
 
     if(mode==="regular"){
       const t0=performance.now();
       let hits=[],missing=[];
       if(rdbmsMode==="and"){
-        const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+        const res=rdbmsConjSearch(rdbmsMode,tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
         hits=res.hits; missing=res.missing;
       } else {
         const unionTrIds=new Set();
@@ -633,8 +623,8 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
         hits:hydrated,
         ms,
         tcvIds,
-        wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),
-        missing,
+        wordLabels,
+        missing:[],
         binaryOutput:null
       });
     } else {
@@ -644,7 +634,6 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
       const backendUrl=getBackendUrl(port);
 
       try{
-        const wordLabels=resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`);
         const conjRes=await fetch(`${backendUrl}/conjunctive-search`,{
           method:"POST",
           headers:{"Content-Type":"application/json"},
@@ -653,7 +642,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
 
         if(!conjRes.ok){
           const err=await conjRes.json().catch(()=>({}));
-          throw new Error(err.detail||`SSE search failed on port ${port}: ${conjRes.status}`);
+          throw new Error(err.detail||`SSE search failed: ${conjRes.status}`);
         }
 
         const conjData=await conjRes.json();
@@ -668,7 +657,7 @@ function RDBMSPanel({mode,tableData,dbIndex,rdbmsMode,setRdbmsMode,backendUrl,ba
 
         let hits=[];
         if(rdbmsMode==="and"){
-          const res=rdbmsConjSearch(tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
+          const res=rdbmsConjSearch(rdbmsMode,tcvIds,dbIndex.idx,dbIndex.tr,tableData,resolvedFilters);
           hits=res.hits;
         } else {
           const unionTrIds=new Set();
@@ -884,7 +873,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
   const [searchCountdown,setSearchCountdown] = useState(4);
 
   const hasVault  = vault.length > 0;
-  const sseReady  = backendStatus==="online" && uploadStatus==="done";
+  const sseReady  = backendStatus==="online";
 
   async function handleSearch(){
     const terms = input.split(/,/).map(s=>s.trim()).filter(Boolean);
@@ -894,7 +883,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
     if(mode==="regular"){
       setResult({type:"regular",qtype,...regularSearch(qtype,t,indexedKws),terms:t});
     } else {
-      setSearching(true); setResult(null);
+      setBusy(true); setResult(null);
       setSearchCountdown(4);
       const interval = setInterval(() => {
         setSearchCountdown(prev => (prev > 1 ? prev - 1 : 1));
@@ -906,7 +895,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
         setResult({type:"sse",qtype,ok:false,error:e.message,terms:t});
       } finally {
         clearInterval(interval);
-        setSearching(false);
+        setBusy(false);
       }
     }
   }
@@ -1115,8 +1104,7 @@ export default function LiveDemo(){
 
   useEffect(()=>{
     Object.entries(BACKENDS).forEach(([key, url]) => {
-      const healthPath = key.startsWith("rdbms-") ? "/status" : "/stats";
-      checkBackend(url, healthPath).then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
+      checkBackend(url, "/stats").then(ok => setBackendStatusByKey(prev => ({...prev, [key]: ok ? "online" : "offline"})));
     });
   },[]);
 
