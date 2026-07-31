@@ -1169,14 +1169,17 @@ int MGDB_QUERY(unsigned char *RES, unsigned char *BIDX, unsigned char *JIDX, uns
             is_tls = true;
         }
         opts = sw::redis::Uri(url_str).connection_options();
+        opts.db = 0;
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
+            opts.tls.cacertdir = "/etc/ssl/certs";
         }
     } else {
         const char* env_host = std::getenv("REDIS_HOST");
         std::string redis_host = env_host ? env_host : "127.0.0.1";
         opts = sw::redis::Uri("redis://" + redis_host + ":6379").connection_options();
+        opts.db = 0;
     }
     auto redis = Redis(opts);
     

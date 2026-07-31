@@ -527,15 +527,19 @@ static sw::redis::ConnectionOptions get_redis_options() {
             is_tls = true;
         }
         auto opts = sw::redis::Uri(url_str).connection_options();
+        opts.db = 0;
         if (is_tls) {
             opts.tls.enabled = true;
             opts.tls.sni = opts.host;
+            opts.tls.cacertdir = "/etc/ssl/certs";
         }
         return opts;
     }
     const char* env_host = std::getenv("REDIS_HOST");
     std::string redis_host = env_host ? env_host : "127.0.0.1";
-    return sw::redis::Uri("redis://" + redis_host + ":6379").connection_options();
+    auto opts = sw::redis::Uri("redis://" + redis_host + ":6379").connection_options();
+    opts.db = 0;
+    return opts;
 }
 
 int Sys_Init()
