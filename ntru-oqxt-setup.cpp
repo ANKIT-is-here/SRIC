@@ -514,9 +514,15 @@ unsigned char* MGDB_LBL;
 sw::redis::ConnectionOptions connection_options;
 sw::redis::ConnectionPoolOptions pool_options;
 
-// // ---------------------------------------------------------------------------------------------------------------------------------- // //
-
-
+static std::string get_redis_url() {
+    const char* env_url = std::getenv("REDIS_URL");
+    if (env_url && std::strlen(env_url) > 0) {
+        return std::string(env_url);
+    }
+    const char* env_host = std::getenv("REDIS_HOST");
+    std::string redis_host = env_host ? env_host : "127.0.0.1";
+    return "tcp://" + redis_host + ":6379";
+}
 
 int Sys_Init()
 {
@@ -1184,9 +1190,8 @@ int TSet_SetUp()
     N_words = (N_max_ids/N_threads) + ((N_max_ids%N_threads==0)?0:1);
     N_max_id_words = N_words * N_threads;
 
-    const char* env_host = std::getenv("REDIS_HOST");
-    std::string redis_host = env_host ? env_host : "127.0.0.1";
-    auto redis = Redis("tcp://" + redis_host + ":6379");
+    std::string redis_url = get_redis_url();
+    auto redis = Redis(redis_url);
     
     int datasize = (2*N_l) + 16;
 
