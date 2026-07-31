@@ -1,4 +1,4 @@
-#include <sw/redis++/tls.h>
+#include "redis_client.h"
 #include "ntru-oqxt-setup.h"
 
 #define TEMPALLOC
@@ -1220,7 +1220,7 @@ int TSet_SetUp()
     N_words = (N_max_ids/N_threads) + ((N_max_ids%N_threads==0)?0:1);
     N_max_id_words = N_words * N_threads;
 
-    auto redis = Redis(get_redis_options());
+    RedisClient redis;
     
     int datasize = (2*N_l) + 16;
 
