@@ -40,9 +40,10 @@
 #include "./blake3/blake3.h" 
 #include "./blake3/blake_hash.h"
 
-#include </usr/local/include/sw/redis++/redis++.h>
-#include </usr/local/include/sw/redis++/connection.h>
-#include </usr/local/include/sw/redis++/redis_cluster.h>
+#include <sw/redis++/redis++.h>
+#include <sw/redis++/connection.h>
+#include <sw/redis++/redis_cluster.h>
+#include <sw/redis++/redis_uri.h>
 
 
 #include "size_parameters.h"
