@@ -514,16 +514,16 @@ export default function TryYourOwnFiles() {
               </p>
               
               <div className="download-chips">
-                <a className="dl-chip" href="http://localhost:8000/download/word_to_id.csv" target="_blank" rel="noreferrer">
+                <a className="dl-chip" href={`${import.meta.env?.VITE_AND_BACKEND_URL || 'http://localhost:8000'}/download/word_to_id.csv`} target="_blank" rel="noreferrer">
                   <Download size={12} /> word_to_id.csv
                 </a>
-                <a className="dl-chip" href="http://localhost:8000/download/id_to_word.csv" target="_blank" rel="noreferrer">
+                <a className="dl-chip" href={`${import.meta.env?.VITE_AND_BACKEND_URL || 'http://localhost:8000'}/download/id_to_word.csv`} target="_blank" rel="noreferrer">
                   <Download size={12} /> id_to_word.csv
                 </a>
-                <a className="dl-chip" href="http://localhost:8000/download/doc_to_id.csv" target="_blank" rel="noreferrer">
+                <a className="dl-chip" href={`${import.meta.env?.VITE_AND_BACKEND_URL || 'http://localhost:8000'}/download/doc_to_id.csv`} target="_blank" rel="noreferrer">
                   <Download size={12} /> doc_to_id.csv
                 </a>
-                <a className="dl-chip" href="http://localhost:8000/download/inverted_index.csv" target="_blank" rel="noreferrer">
+                <a className="dl-chip" href={`${import.meta.env?.VITE_AND_BACKEND_URL || 'http://localhost:8000'}/download/inverted_index.csv`} target="_blank" rel="noreferrer">
                   <Download size={12} /> inverted_index.csv
                 </a>
               </div>

@@ -166,7 +166,10 @@ const BACKEND_PORTS = { single: 8000, and: 8000, rdbms: 8000, or: 8001 };
 // share one status/index cache under this key; "or" gets its own.
 const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", rdbms: "primary", or: "or" };
 
-const getBackendUrl = (port) => {
+const getBackendUrl = (port, envVar) => {
+  if (import.meta.env && import.meta.env[envVar]) {
+    return import.meta.env[envVar];
+  }
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   // Handle remote proxies/Codespaces (e.g., ports 3000/8000 mapped to subdomains)
@@ -180,7 +183,10 @@ const getBackendUrl = (port) => {
 };
 
 // key -> backend base URL, e.g. {primary: "http://host:8000", or: "http://host:8001"}
-const BACKENDS = { primary: getBackendUrl(BACKEND_PORTS.single), or: getBackendUrl(BACKEND_PORTS.or) };
+const BACKENDS = { 
+  primary: getBackendUrl(BACKEND_PORTS.single, "VITE_AND_BACKEND_URL"), 
+  or:      getBackendUrl(BACKEND_PORTS.or, "VITE_OR_BACKEND_URL") 
+};
 
 async function checkBackend(backendUrl) {
   try {

@@ -1,3 +1,4 @@
+
 @echo off
 echo Checking if Docker is running...
 docker info >nul 2>&1
@@ -13,5 +14,8 @@ if %errorlevel% neq 0 (
         goto wait_loop
     )
 )
+echo Ensuring sse-network exists...
+docker network create sse-network >nul 2>&1
 echo Docker is running. Starting docker compose...
 docker compose up
+
