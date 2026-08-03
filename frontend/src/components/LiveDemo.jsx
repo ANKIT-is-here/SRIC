@@ -581,7 +581,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
       setBusy(true);
       setResult(null);
       const port=rdbmsSubtype==="or"?BACKEND_PORTS.or:BACKEND_PORTS.single;
-      const backendUrl=getBackendUrl(port);
+      const backendUrl=rdbmsSubtype==="or"?BACKENDS.or:BACKENDS.primary;
 
       try{
         const wordLabels=resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`);
