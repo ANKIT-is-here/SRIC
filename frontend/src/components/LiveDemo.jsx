@@ -168,10 +168,14 @@ const BACKEND_KEY_FOR_QTYPE = { single: "primary", and: "primary", rdbms: "prima
 
 const getBackendUrl = (port, envVar) => {
   if (import.meta.env && import.meta.env[envVar]) {
-    return import.meta.env[envVar];
+    let url = String(import.meta.env[envVar]).trim().replace(/\/+$/, "");
+    if (typeof window !== "undefined" && window.location.protocol === "https:" && url.startsWith("http:")) {
+      url = url.replace(/^http:/, "https:");
+    }
+    return url;
   }
-  const hostname = window.location.hostname;
-  const protocol = window.location.protocol;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const protocol = typeof window !== "undefined" ? window.location.protocol : "http:";
   // Handle remote proxies/Codespaces (e.g., ports 3000/8000 mapped to subdomains)
   if (hostname.includes("-3000.")) {
     return `${protocol}//${hostname.replace("-3000.", `-${port}.`)}`;
