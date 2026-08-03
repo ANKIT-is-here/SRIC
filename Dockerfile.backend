@@ -19,13 +19,12 @@ RUN apt-get update && apt-get install -y \
     redis-tools \
     git \
     cmake \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy redis-plus-plus source from host (fixes DNS issues resolving github.com inside Docker)
-COPY redis-plus-plus /tmp/redis-plus-plus
-
-# Build redis-plus-plus from local source
-RUN cd /tmp/redis-plus-plus \
+# Clone and build redis-plus-plus from GitHub (submodule was not pushed to repo)
+RUN git clone --depth 1 https://github.com/sewenew/redis-plus-plus.git /tmp/redis-plus-plus \
+    && cd /tmp/redis-plus-plus \
     && mkdir build \
     && cd build \
     && cmake -DREDIS_PLUS_PLUS_CXX_STANDARD=17 .. \
@@ -48,7 +47,7 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port 8000 for the FastAPI server
+# Expose port for the FastAPI server (Render injects $PORT)
 EXPOSE 8000
 
 # By default, run the document search backend
