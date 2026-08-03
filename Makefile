@@ -1,13 +1,17 @@
 CC = g++
 LD = g++
 
-# Compilation flags
-CFLAGS = -I. -I./blake3/ -w -O2 -std=c++17 -msse2 -msse -mssse3 -fpermissive -fopenmp -DBLAKE3_NO_AVX512 -DBLAKE3_NO_AVX2
+# Compilation flags — cloud-safe: SSE2 only, no AVX2/AVX512/SSE4.1
+# BLAKE3_NO_SSE41, BLAKE3_NO_AVX2, BLAKE3_NO_AVX512 disable SIMD variants
+# that require CPU features not available on all cloud build machines.
+CFLAGS = -I. -I./blake3/ -w -O2 -std=c++17 -msse2 -fpermissive -fopenmp \
+         -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512
 
 # Linker flags
 LDFLAGS = -lcryptopp -lpthread -lgmpxx -lssl -lhiredis -lredis++ -lcrypto -lntl -lgmp -lm -lrt -lgomp
 
-BLAKE3_SRCS = ./blake3/blake_hash.cpp ./blake3/blake3.c ./blake3/blake3_dispatch.c ./blake3/blake3_portable.c ./blake3/blake3_sse2.c ./blake3/blake3_sse41.c
+# Only include portable + SSE2 blake3 sources (SSE41 and AVX2 are disabled)
+BLAKE3_SRCS = ./blake3/blake_hash.cpp ./blake3/blake3.c ./blake3/blake3_dispatch.c ./blake3/blake3_portable.c ./blake3/blake3_sse2.c
 
 # Targets
 ntru-oqxt-setup: rawdatautil.cpp bloom_filter.cpp AES_256GCM.c \
