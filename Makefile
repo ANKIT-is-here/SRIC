@@ -2,12 +2,12 @@ CC = g++
 LD = g++
 
 # Compilation flags
-CFLAGS = -I. -I./blake3/ -w -O3 -std=c++17 -msse2 -msse -mssse3 -march=native -ffast-math -mavx2 -mfma -maes -fpermissive -fopenmp -DBLAKE3_NO_AVX512
+CFLAGS = -I. -I./blake3/ -w -O2 -std=c++17 -msse2 -msse -mssse3 -fpermissive -fopenmp -DBLAKE3_NO_AVX512 -DBLAKE3_NO_AVX2
 
 # Linker flags
-LDFLAGS = -lcryptopp -lpthread -lgmpxx -lssl -lhiredis -lredis++ -lcrypto -lntl -lgmp -lm -lrt
+LDFLAGS = -lcryptopp -lpthread -lgmpxx -lssl -lhiredis -lredis++ -lcrypto -lntl -lgmp -lm -lrt -lgomp
 
-BLAKE3_SRCS = ./blake3/blake_hash.cpp ./blake3/blake3.c ./blake3/blake3_dispatch.c ./blake3/blake3_portable.c ./blake3/blake3_avx2.c ./blake3/blake3_sse2.c ./blake3/blake3_sse41.c
+BLAKE3_SRCS = ./blake3/blake_hash.cpp ./blake3/blake3.c ./blake3/blake3_dispatch.c ./blake3/blake3_portable.c ./blake3/blake3_sse2.c ./blake3/blake3_sse41.c
 
 # Targets
 ntru-oqxt-setup: rawdatautil.cpp bloom_filter.cpp AES_256GCM.c \
