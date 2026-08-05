@@ -104,9 +104,47 @@ function sha256ish(str) {
 }
 function gibberish(seed,len=80){let s=seed;const c="ABCDEFabcdef0123456789";let o="";for(let i=0;i<len;i++){s=(Math.imul(s,1664525)+1013904223)>>>0;o+=c[s%c.length];if(i%8===7)o+=" ";}return o;}
 
-function openDocInNewWindow(name, content) {
+function openDocInNewWindow(name, content, docObj) {
   const win = window.open("", "_blank");
   if (!win) return;
+
+  const rawFile = docObj?.rawFile || (content instanceof Blob ? content : null);
+  const isPdf = name.toLowerCase().endsWith(".pdf") || (rawFile && rawFile.type === "application/pdf");
+
+  if (isPdf && rawFile) {
+    const pdfUrl = URL.createObjectURL(rawFile);
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Document Viewer - ${name}</title>
+          <style>
+            html, body { background: #0a0a0a; color: #e5e5e5; font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+            .header { background: #111; border-bottom: 1px solid #222; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; height: 54px; box-sizing: border-box; }
+            h1 { font-size: 16px; color: #ffd208; margin: 0; font-family: 'Space Mono', monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .badge { background: rgba(255, 210, 8, 0.1); border: 1px solid rgba(255, 210, 8, 0.3); color: #ffd208; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-family: monospace; }
+            .pdf-frame { flex: 1; width: 100%; height: calc(100vh - 54px); border: none; background: #1e1e1e; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <button onclick="window.close()" style="background: #ffd208; border: none; color: #0a0a0a; font-weight: 700; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: sans-serif; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 15px rgba(255, 210, 8, 0.3);">
+                ← Back to Site
+              </button>
+              <h1>📄 ${name}</h1>
+            </div>
+            <span class="badge">SSE Encrypted PDF Document</span>
+          </div>
+          <iframe class="pdf-frame" src="${pdfUrl}#toolbar=1" type="application/pdf"></iframe>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    return;
+  }
+
+  // Text document view fallback
   win.document.write(`
     <!DOCTYPE html>
     <html>
@@ -130,11 +168,20 @@ function openDocInNewWindow(name, content) {
           </div>
           <span class="badge">SSE Encrypted Document Source</span>
         </div>
-        <pre>${(content || 'Document content stored securely.').replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+        <pre id="doc-content">${(content || 'Reading document content...').replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
       </body>
     </html>
   `);
   win.document.close();
+
+  if (rawFile && !content && !isPdf) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const el = win.document.getElementById("doc-content");
+      if (el) el.textContent = e.target.result;
+    };
+    reader.readAsText(rawFile);
+  }
 }
 
 function openCSVInNewWindow(name, headers, rows) {
@@ -570,7 +617,7 @@ function DocResult({docName, vaultMap}){
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:4,padding:"7px 10px",marginBottom:6}}>
       <span style={{fontSize:12,color:"#ddd",fontFamily:"Space Mono,monospace"}}>{docName}</span>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
-        <button onClick={() => openDocInNewWindow(docName, content)}
+        <button onClick={() => openDocInNewWindow(docName, content, doc)}
           style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid #1a1a1a",background:"transparent",color:"#ffd208",cursor:"pointer",fontSize:10,fontFamily:"Space Mono,monospace",flexShrink:0,transition:"all 0.15s"}}
           onMouseEnter={e=>{e.currentTarget.style.background="#ffd20815";}}
           onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
@@ -1457,7 +1504,7 @@ export default function LiveDemo(){
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
                       <span style={{fontSize:10,color:"#ffd208",fontFamily:"Space Mono,monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
                       <button
-                        onClick={() => openDocInNewWindow(doc.name, doc.content || doc.rawContent)}
+                        onClick={() => openDocInNewWindow(doc.name, doc.content || doc.rawContent, doc)}
                         style={{ background: "transparent", border: "1px solid #222", color: "#ffd208", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontFamily: "Space Mono, monospace", flexShrink: 0, marginLeft: 6 }}
                         onMouseEnter={e=>{e.currentTarget.style.background="#ffd20815";}}
                         onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
