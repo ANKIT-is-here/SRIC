@@ -121,8 +121,8 @@ export default function About() {
                 body: 'Adding or removing documents from the encrypted index without a full rebuild. Currently the index is static after setup.',
               },
               {
-                title: 'Numeric FHE queries',
-                body: 'Encrypted Boolean function evaluation: Using fast encrypted table lookups of SSE to support efficient Boolean function evaluations over encrypted inputs.',
+                title: 'Encrypted Boolean function evaluation',
+                body: 'Using fast encrypted table lookups of SSE to support efficiency Boolean function evaluations over encrypted inputs.',
               },
             ].map((item, i) => (
               <div key={i} style={{ padding: '32px 28px', background: '#0d0d0d', borderRight: i < 2 ? '1px solid #1a1a1a' : 'none' }}>
