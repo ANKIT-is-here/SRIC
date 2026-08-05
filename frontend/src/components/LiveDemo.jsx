@@ -1454,7 +1454,17 @@ export default function LiveDemo(){
                 <div style={{fontSize:9,fontFamily:"Space Mono,monospace",letterSpacing:"0.1em",color:"#666",textTransform:"uppercase",marginBottom:10}}>Keyword index</div>
                 {vault.map(doc=>(
                   <div key={doc.name} style={{marginBottom:10}}>
-                    <div style={{fontSize:10,color:"#777",marginBottom:5,fontFamily:"Space Mono,monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:5}}>
+                      <span style={{fontSize:10,color:"#ffd208",fontFamily:"Space Mono,monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</span>
+                      <button
+                        onClick={() => openDocInNewWindow(doc.name, doc.content || doc.rawContent)}
+                        style={{ background: "transparent", border: "1px solid #222", color: "#ffd208", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontFamily: "Space Mono, monospace", flexShrink: 0, marginLeft: 6 }}
+                        onMouseEnter={e=>{e.currentTarget.style.background="#ffd20815";}}
+                        onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
+                      >
+                        👁️ view
+                      </button>
+                    </div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                       {(doc.keywords||[]).length===0
                         ? <span style={{fontSize:10,color:"#555",fontFamily:"Space Mono,monospace"}}>uploading...</span>
@@ -1474,11 +1484,21 @@ export default function LiveDemo(){
                 <div style={{fontSize:9,fontFamily:"Space Mono,monospace",letterSpacing:"0.1em",color:"#666",textTransform:"uppercase",marginBottom:10}}>Loaded tables</div>
                 {Object.entries(tableData).map(([name,td])=>(
                   <div key={name} style={{marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <div>
+                    <div style={{flex:1,minWidth:0,marginRight:8}}>
                       <div style={{fontSize:10,color:"#4ade80",fontFamily:"Space Mono,monospace",marginBottom:2}}>{name}</div>
-                      <div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace"}}>{td.headers.join(", ")}</div>
+                      <div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{td.headers.join(", ")}</div>
                     </div>
-                    <span style={{fontSize:10,color:"#555",fontFamily:"Space Mono,monospace",flexShrink:0,marginLeft:8}}>{td.rows.length} rows</span>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                      <span style={{fontSize:10,color:"#555",fontFamily:"Space Mono,monospace"}}>{td.rows.length} rows</span>
+                      <button
+                        onClick={() => openCSVInNewWindow(name, td.headers, td.rows)}
+                        style={{ background: "transparent", border: "1px solid #222", color: "#4ade80", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontFamily: "Space Mono, monospace" }}
+                        onMouseEnter={e=>{e.currentTarget.style.background="#4ade8015";}}
+                        onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
+                      >
+                        👁️ view
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
