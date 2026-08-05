@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 export default function Contact() {
   const ref = useRef();
   useEffect(() => {
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.2 });
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) e.target.classList.add('visible'); }, { threshold: 0.1 });
     if (ref.current) obs.observe(ref.current);
     return () => obs.disconnect();
   }, []);
@@ -12,34 +12,40 @@ export default function Contact() {
     {
       category: 'Research & Development',
       members: [
-        { name: 'Prof. Debdeep Mukhopadhyay', email: 'debdeep.mukhopadhyay@gmail.com', role: 'Faculty Lead / Advisor', highlight: true },
-        { name: 'Debadrita Talapatra', email: 'debadritat.fg2219@gmail.com' },
-        { name: 'Nimish Mishra', email: 'neelam.nimish@gmail.com' },
+        { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', highlight: true },
+        { name: 'Debadrita Talapatra', role: 'Research Lead' },
+        { name: 'Nimish Mishra', role: 'Researcher' },
       ]
     },
     {
       category: 'Website Development',
       members: [
-        { name: 'Harsh Sharma', email: 'harshsharma2024@gmail.com' },
-        { name: 'Ankit Pal', email: 'ankitpal862005@gmail.com' },
-        { name: 'Manjunath Talari', email: 'manjunath10580@gmail.com' },
+        { name: 'Harsh Sharma', role: 'Frontend Engineer' },
+        { name: 'Ankit Pal', role: 'Full Stack Engineer' },
+        { name: 'Manjunath Talari', role: 'Developer' },
       ]
     }
+  ];
+
+  const contacts = [
+    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', email: 'debdeep.mukhopadhyay@gmail.com', highlight: true },
+    { name: 'Debadrita Talapatra', role: 'Research & Development Lead', email: 'debadritat.fg2219@gmail.com', highlight: false }
   ];
 
   return (
     <div className="section" style={{ borderTop: '1px solid #1a1a1a' }}>
       <div className="container">
         <div ref={ref} className="fade-up">
-          <div className="label" style={{ marginBottom: 16 }}>Team & Contact</div>
-          <h2 className="heading-lg" style={{ marginBottom: 48 }}>Meet the Team</h2>
+          {/* Meet the Team Section */}
+          <div className="label" style={{ marginBottom: 16 }}>Our Team</div>
+          <h2 className="heading-lg" style={{ marginBottom: 44 }}>Meet the Team</h2>
 
           {teams.map((group, gIdx) => (
-            <div key={gIdx} style={{ marginBottom: gIdx < teams.length - 1 ? 48 : 0 }}>
+            <div key={gIdx} style={{ marginBottom: 40 }}>
               <h3 style={{ fontSize: 18, fontWeight: 600, color: '#ffd208', marginBottom: 20, letterSpacing: '-0.01em', fontFamily: 'Space Grotesk, sans-serif' }}>
                 {group.category}
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
                 {group.members.map((m, i) => (
                   <div
                     key={i}
@@ -68,27 +74,60 @@ export default function Contact() {
                         {m.role}
                       </div>
                     )}
-                    <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0', marginBottom: 8 }}>{m.name}</div>
-                    <a
-                      href={`mailto:${m.email}`}
-                      style={{
-                        fontSize: 13,
-                        color: '#ffd208',
-                        textDecoration: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontFamily: 'Space Mono, monospace',
-                        wordBreak: 'break-all'
-                      }}
-                    >
-                      {m.email}
-                    </a>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0', marginBottom: m.highlight ? 0 : 4 }}>{m.name}</div>
+                    {!m.highlight && <div style={{ fontSize: 12, color: '#777', fontFamily: 'Space Mono, monospace' }}>{m.role}</div>}
                   </div>
                 ))}
               </div>
             </div>
           ))}
+
+          {/* Contact Us Section */}
+          <div id="contact" style={{ marginTop: 56, paddingTop: 48, borderTop: '1px dashed #222' }}>
+            <div className="label" style={{ marginBottom: 16 }}>Get in Touch</div>
+            <h2 className="heading-lg" style={{ marginBottom: 32 }}>Contact Us</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+              {contacts.map((c, i) => (
+                <div
+                  key={i}
+                  className="card"
+                  style={{
+                    border: c.highlight ? '1px solid rgba(255, 210, 8, 0.6)' : '1px solid #222',
+                    background: c.highlight ? 'linear-gradient(135deg, rgba(255, 210, 8, 0.08) 0%, rgba(15, 15, 15, 0.95) 100%)' : '#0d0d0d',
+                    padding: '24px 28px'
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontFamily: 'Space Mono, monospace', color: c.highlight ? '#ffd208' : '#888', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                    {c.role}
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 14 }}>{c.name}</div>
+                  <a
+                    href={`mailto:${c.email}`}
+                    style={{
+                      fontSize: 13,
+                      color: '#ffd208',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontFamily: 'Space Mono, monospace',
+                      padding: '8px 14px',
+                      background: 'rgba(255, 210, 8, 0.1)',
+                      border: '1px solid rgba(255, 210, 8, 0.3)',
+                      borderRadius: 6,
+                      transition: 'all 0.2s',
+                      wordBreak: 'break-all'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 210, 8, 0.2)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 210, 8, 0.1)'; }}
+                  >
+                    ✉️ {c.email}
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

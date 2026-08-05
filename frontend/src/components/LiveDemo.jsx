@@ -811,7 +811,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
         fontSize: 11
       }}>
         <div style={{ color: "#ffd208", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-          <span>⚡ Query Skeleton</span>
+          <span>Query Skeleton</span>
           <span style={{ color: "#888", fontWeight: 400 }}>({rdbmsSubtype === "and" ? "Conjunction AND" : "Disjunction OR"})</span>
         </div>
         <div style={{ color: "#4ade80", wordBreak: "break-all", lineHeight: 1.5 }}>
@@ -819,13 +819,14 @@ function RDBMSPanel({mode,tableData,dbIndex}){
             const valid = filters.filter(f => f.table && f.column && f.value);
             if (!valid.length) {
               return rdbmsSubtype === "and"
-                ? "WHERE (Table.Column1 = 'Val1') AND (Table.Column2 = 'Val2')  [(Table.Column1 = 'Val1') + (Table.Column2 = 'Val2')]"
-                : "WHERE (Table.Column1 = 'Val1') OR (Table.Column2 = 'Val2')   [(Table.Column1 = 'Val1') | (Table.Column2 = 'Val2')]";
+                ? "SELECT * FROM [Table] WHERE (Table.Column1 = 'Val1') AND (Table.Column2 = 'Val2')  [(Table.Column1 = 'Val1') + (Table.Column2 = 'Val2')]"
+                : "SELECT * FROM [Table] WHERE (Table.Column1 = 'Val1') OR (Table.Column2 = 'Val2')   [(Table.Column1 = 'Val1') | (Table.Column2 = 'Val2')]";
             }
+            const targetTables = [...new Set(valid.map(f => f.table))].join(", ");
             const clauses = valid.map(f => `(${f.table}.${f.column} = '${f.value}')`);
             return rdbmsSubtype === "and"
-              ? `WHERE ${clauses.join(" AND ")}   [ ${clauses.join(" + ")} ]`
-              : `WHERE ${clauses.join(" OR ")}    [ ${clauses.join(" | ")} ]`;
+              ? `SELECT * FROM ${targetTables} WHERE ${clauses.join(" AND ")}   [ ${clauses.join(" + ")} ]`
+              : `SELECT * FROM ${targetTables} WHERE ${clauses.join(" OR ")}    [ ${clauses.join(" | ")} ]`;
           })()}
         </div>
       </div>
@@ -1353,7 +1354,6 @@ export default function LiveDemo(){
             boxShadow: "0 4px 20px rgba(0,0,0,0.4)"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 22 }}>⚡</span>
               <div style={{ fontSize: 15, color: "#f5f5f0", lineHeight: 1.4 }}>
                 <strong style={{ color: "#ffd208", fontWeight: 700 }}>Notice:</strong> If server says offline, wait for 1-2 min and refresh.
               </div>

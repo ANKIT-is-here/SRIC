@@ -113,7 +113,7 @@ export default function About() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 1, border: '1px solid #1a1a1a', borderRadius: 8, overflow: 'hidden' }}>
             {[
               {
-                title: 'Range and fuzzy queries',
+                title: 'Range/Join queries',
                 body: 'Extending support beyond exact keyword matches. Partial words and approximate terms should resolve without leaking structural information to the server.',
               },
               {
@@ -122,7 +122,7 @@ export default function About() {
               },
               {
                 title: 'Encrypted Boolean function evaluation',
-                body: 'Using fast encrypted table lookups of SSE to support efficiency Boolean function evaluations over encrypted inputs.',
+                body: 'Using fast encrypted table lookups of SSE to support efficient Boolean function evaluations over encrypted inputs.',
               },
             ].map((item, i) => (
               <div key={i} style={{ padding: '32px 28px', background: '#0d0d0d', borderRight: i < 2 ? '1px solid #1a1a1a' : 'none' }}>
