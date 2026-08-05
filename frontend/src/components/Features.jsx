@@ -19,13 +19,13 @@ export default function Features() {
 
   const features = [
     {
-      title: "Zero-Knowledge",
-      desc: "Powered by Searchable Symmetric Encryption, the server never sees your queries. Your data remains fully encrypted during search.",
+      title: "Data Privacy",
+      desc: "Powered by Searchable Symmetric Encryption, the server never sees query — it remains private. Your data stays fully encrypted during search.",
       icon: <Lock size={26} color="#00d2ff" />
     },
     {
       title: "Lightning Fast",
-      desc: "O(1) search complexity ensures instant results, even over massive encrypted databases.",
+      desc: "Ensures instant search results, even over massive encrypted databases.",
       icon: <Zap size={26} color="#ffd208" />
     },
     {

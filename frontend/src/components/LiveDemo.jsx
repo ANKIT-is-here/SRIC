@@ -104,6 +104,83 @@ function sha256ish(str) {
 }
 function gibberish(seed,len=80){let s=seed;const c="ABCDEFabcdef0123456789";let o="";for(let i=0;i<len;i++){s=(Math.imul(s,1664525)+1013904223)>>>0;o+=c[s%c.length];if(i%8===7)o+=" ";}return o;}
 
+function openDocInNewWindow(name, content) {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Document Viewer - ${name}</title>
+        <style>
+          body { background: #0a0a0a; color: #e5e5e5; font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; padding: 40px; margin: 0; }
+          .header { border-bottom: 1px solid #222; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+          h1 { font-size: 22px; color: #ffd208; margin: 0; font-family: 'Space Mono', monospace; }
+          .badge { background: rgba(255, 210, 8, 0.1); border: 1px solid rgba(255, 210, 8, 0.3); color: #ffd208; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-family: monospace; }
+          pre { background: #111111; padding: 24px; border-radius: 8px; border: 1px solid #222; white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #d4d4d4; font-family: 'Space Mono', monospace; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button onclick="window.close()" style="background: #ffd208; border: none; color: #0a0a0a; font-weight: 700; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-family: sans-serif; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 15px rgba(255, 210, 8, 0.3); transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+              ← Back to Site
+            </button>
+            <h1>📄 ${name}</h1>
+          </div>
+          <span class="badge">SSE Encrypted Document Source</span>
+        </div>
+        <pre>${(content || 'Document content stored securely.').replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
+function openCSVInNewWindow(name, headers, rows) {
+  const win = window.open("", "_blank");
+  if (!win) return;
+  const headerHtml = (headers || []).map(h => `<th>${h}</th>`).join("");
+  const rowsHtml = (rows || []).map(r => `<tr>${r.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("");
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Table Viewer - ${name}</title>
+        <style>
+          body { background: #0a0a0a; color: #e5e5e5; font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif; padding: 32px; margin: 0; }
+          .header { border-bottom: 1px solid #222; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+          h1 { font-size: 22px; color: #4ade80; margin: 0; font-family: 'Space Mono', monospace; }
+          .meta { font-size: 12px; color: #888; font-family: monospace; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; font-family: 'Space Mono', monospace; font-size: 13px; }
+          th { background: #161616; color: #ffd208; text-align: left; padding: 12px; border: 1px solid #262626; font-weight: 600; }
+          td { padding: 10px 12px; border: 1px solid #222; color: #ccc; }
+          tr:nth-child(even) { background: #0d0d0d; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button onclick="window.close()" style="background: #ffd208; border: none; color: #0a0a0a; font-weight: 700; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-family: sans-serif; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 15px rgba(255, 210, 8, 0.3); transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+              ← Back to Site
+            </button>
+            <div>
+              <h1>📊 ${name}</h1>
+              <div class="meta">${(rows || []).length} rows | ${(headers || []).length} columns</div>
+            </div>
+          </div>
+          <span style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); color: #4ade80; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-family: monospace;">RDBMS Encrypted Table</span>
+        </div>
+        <table>
+          <thead><tr>${headerHtml}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </body>
+    </html>
+  `);
+  win.document.close();
+}
+
 const STOP_WORDS = new Set(["the","and","for","that","this","with","from","are","was","were","have","has","been","will","not","but","they","their","what","when","which","you","your","can","its","our","all","any","also","more","than","such","each","into"]);
 
 // Filter backend's full token list down to meaningful display keywords
@@ -492,14 +569,22 @@ function DocResult({docName, vaultMap}){
   return(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:4,padding:"7px 10px",marginBottom:6}}>
       <span style={{fontSize:12,color:"#ddd",fontFamily:"Space Mono,monospace"}}>{docName}</span>
-      {canDownload && (
-        <button onClick={() => rawFile ? triggerDownload(docName, rawFile, rawFile.type) : triggerDownload(docName.replace(/\.pdf$/i,".txt"), content)}
-          style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid #1a1a1a",background:"transparent",color:"#666",cursor:"pointer",fontSize:10,fontFamily:"Space Mono,monospace",flexShrink:0,transition:"all 0.15s"}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor="#ffd20844";e.currentTarget.style.color="#ffd208";}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a1a1a";e.currentTarget.style.color="#666";}}>
-          <DownloadIcon/> download
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <button onClick={() => openDocInNewWindow(docName, content)}
+          style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid #1a1a1a",background:"transparent",color:"#ffd208",cursor:"pointer",fontSize:10,fontFamily:"Space Mono,monospace",flexShrink:0,transition:"all 0.15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.background="#ffd20815";}}
+          onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+          👁️ view
         </button>
-      )}
+        {canDownload && (
+          <button onClick={() => rawFile ? triggerDownload(docName, rawFile, rawFile.type) : triggerDownload(docName.replace(/\.pdf$/i,".txt"), content)}
+            style={{display:"flex",alignItems:"center",gap:4,padding:"3px 8px",borderRadius:4,border:"1px solid #1a1a1a",background:"transparent",color:"#666",cursor:"pointer",fontSize:10,fontFamily:"Space Mono,monospace",flexShrink:0,transition:"all 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="#ffd20844";e.currentTarget.style.color="#ffd208";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a1a1a";e.currentTarget.style.color="#666";}}>
+            <DownloadIcon/> download
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -576,6 +661,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
       setResult({
         hits:hydrated,
         ms,
+        timingUs: Math.round(ms * 1000),
         tcvIds,
         wordLabels:resolvedFilters.map(f=>`(${f.table},${f.column},'${f.value}')`),
         missing,
@@ -663,8 +749,38 @@ function RDBMSPanel({mode,tableData,dbIndex}){
         ))}
       </div>
 
-      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:18,maxWidth:700}}>
+      <div style={{fontSize:12,color:"#999",lineHeight:1.65,marginBottom:14,maxWidth:700}}>
         {EXP[`${mode}-rdbms-${rdbmsSubtype}`]||EXP[`${mode}-rdbms`]}
+      </div>
+
+      {/* Permanent RDBMS Query Skeleton Box */}
+      <div style={{
+        margin: "14px 0 20px 0",
+        padding: "12px 16px",
+        background: "#050505",
+        border: "1px solid #1f1f1f",
+        borderRadius: 6,
+        fontFamily: "Space Mono, monospace",
+        fontSize: 11
+      }}>
+        <div style={{ color: "#ffd208", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+          <span>⚡ Query Skeleton</span>
+          <span style={{ color: "#888", fontWeight: 400 }}>({rdbmsSubtype === "and" ? "Conjunction AND" : "Disjunction OR"})</span>
+        </div>
+        <div style={{ color: "#4ade80", wordBreak: "break-all", lineHeight: 1.5 }}>
+          {(() => {
+            const valid = filters.filter(f => f.table && f.column && f.value);
+            if (!valid.length) {
+              return rdbmsSubtype === "and"
+                ? "WHERE (Table.Column1 = 'Val1') AND (Table.Column2 = 'Val2')  [(Table.Column1 = 'Val1') + (Table.Column2 = 'Val2')]"
+                : "WHERE (Table.Column1 = 'Val1') OR (Table.Column2 = 'Val2')   [(Table.Column1 = 'Val1') | (Table.Column2 = 'Val2')]";
+            }
+            const clauses = valid.map(f => `(${f.table}.${f.column} = '${f.value}')`);
+            return rdbmsSubtype === "and"
+              ? `WHERE ${clauses.join(" AND ")}   [ ${clauses.join(" + ")} ]`
+              : `WHERE ${clauses.join(" OR ")}    [ ${clauses.join(" | ")} ]`;
+          })()}
+        </div>
       </div>
 
       {!hasTables?(
@@ -723,7 +839,7 @@ function RDBMSPanel({mode,tableData,dbIndex}){
             </div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>
-                {result.timingUs?`${result.timingUs} µs (${result.ms.toFixed(3)} ms)`:`${result.ms.toFixed(3)} ms`}
+                {result.timingUs != null ? `${result.timingUs.toLocaleString()} µs` : `${Math.round(result.ms * 1000)} µs`}
               </div>
               {result.hits.length>0&&(
                 <button onClick={()=>{
@@ -923,7 +1039,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
                 <>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
                     <div style={{fontSize:12,color:"#ccc"}}>{result.docs.length?`${result.docs.length} document${result.docs.length>1?"s":""} matched`:"No documents matched"}</div>
-                    <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>{result.ms.toFixed(3)} ms</div>
+                    <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>{Math.round(result.ms * 1000)} µs</div>
                   </div>
                   {result.docs.map(n=><DocResult key={n} docName={n} vaultMap={vaultMap}/>)}
                 </>
@@ -1173,9 +1289,59 @@ export default function LiveDemo(){
         }
       `}</style>
       <div style={{maxWidth:1200,margin:"0 auto",padding:"0 32px"}}>
-        <div style={{marginBottom:48}}>
+        <div style={{marginBottom:32}}>
           <div style={{fontFamily:"Space Mono,monospace",fontSize:11,color:"#ffd208",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12}}>Interactive demo</div>
           <h2 style={{fontSize:"clamp(28px,4vw,44px)",fontWeight:700,color:"#f5f5f0",letterSpacing:"-0.025em",lineHeight:1.1}}>Try it yourself</h2>
+          
+          <div style={{
+            marginTop: 20,
+            padding: "16px 22px",
+            background: "rgba(255, 210, 8, 0.06)",
+            border: "1px solid rgba(255, 210, 8, 0.3)",
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 14,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.4)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 22 }}>⚡</span>
+              <div style={{ fontSize: 15, color: "#f5f5f0", lineHeight: 1.4 }}>
+                <strong style={{ color: "#ffd208", fontWeight: 700 }}>Notice:</strong> If server says offline, wait for 1-2 min and refresh.
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setVault([]);
+                setIndexedKws({});
+                setWordToIdByKey({primary:{}, or:{}});
+                setTableData({});
+                setDbIndex(null);
+                setBackendStatusByKey({primary:"checking", or:"checking"});
+                setUploadStatusByKey({primary:"idle", or:"idle"});
+                checkBackend(BACKENDS.primary).then(ok => setBackendStatusByKey(prev => ({...prev, primary: ok ? "online" : "offline"})));
+                checkBackend(BACKENDS.or).then(ok => setBackendStatusByKey(prev => ({...prev, or: ok ? "online" : "offline"})));
+              }}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "Space Grotesk, sans-serif",
+                background: "rgba(244, 63, 94, 0.12)",
+                border: "1px solid rgba(244, 63, 94, 0.35)",
+                color: "#f43f5e",
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "all 0.2s"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(244, 63, 94, 0.25)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(244, 63, 94, 0.12)"; }}
+            >
+              Reset Demo 🔄
+            </button>
+          </div>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,alignItems:"start"}}>
@@ -1212,7 +1378,7 @@ export default function LiveDemo(){
                   }} />
                   <div style={{fontSize: 13, fontWeight: 600, color: "#ffd208", fontFamily: "Space Grotesk, sans-serif"}}>Uploading & Indexing...</div>
                   <div style={{fontSize: 11, color: "#999", marginTop: 4, fontFamily: "Space Mono, monospace"}}>
-                    Running C++ NTRU cryptographic setup (takes ~{uploadCountdown}s)
+                    Uploading document and making it ready for SSE search
                   </div>
                   <div style={{
                     width: "80%",
@@ -1262,6 +1428,14 @@ export default function LiveDemo(){
                           <div style={{fontSize:11,fontWeight:600,color:"#ccc",display:"flex",alignItems:"center",gap:6}}>
                             <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
                             {loaded&&<span style={{fontSize:9,color:isRdbms?"#4ade80":"#ffd208",flexShrink:0}}>loaded</span>}
+                            <button
+                              onClick={(e)=>{ e.stopPropagation(); isRdbms ? openCSVInNewWindow(s.name, parseCSV(s.content).headers, parseCSV(s.content).rows) : openDocInNewWindow(s.name, s.content); }}
+                              style={{ marginLeft: "auto", background: "transparent", border: "1px solid #222", color: "#ffd208", borderRadius: 4, padding: "2px 6px", fontSize: 9, cursor: "pointer", fontFamily: "Space Mono, monospace" }}
+                              onMouseEnter={e=>{e.currentTarget.style.background="#ffd20815";}}
+                              onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}
+                            >
+                              👁️ view
+                            </button>
                           </div>
                           <div style={{fontSize:10,color:"#777",marginTop:2,fontFamily:"Space Mono,monospace"}}>
                             {isRdbms?parseCSV(s.content).headers.join(", "):`${s.keywords.slice(0,3).join(", ")}...`}

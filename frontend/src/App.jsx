@@ -56,7 +56,7 @@ export default function App() {
       <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
         <div className="nav-inner">
           <div className="nav-brand" onClick={goHome}>
-            SSE<span>Vault</span>
+            SSE <span>Search Engine</span>
           </div>
 
           {page === 'home' ? (
@@ -139,9 +139,9 @@ export default function App() {
       {/* FOOTER */}
       <footer className="footer">
         <div className="container footer-inner">
-          <div className="nav-brand">SSE<span>Vault</span></div>
-          <span className="footer-copy">SEC / SEAL Lab, IIT Kharagpur</span>
-          <a href="https://github.com/debadrita05/NTRU-OQXT" target="_blank" rel="noreferrer" className="footer-link">GitHub</a>
+          <div className="nav-brand">SSE <span>Search Engine</span></div>
+          <span className="footer-copy">SEAL Lab, IIT Kharagpur</span>
+          <a href="https://github.com/SEAL-IIT-KGP/TWINSSE" target="_blank" rel="noreferrer" className="footer-link">GitHub</a>
         </div>
       </footer>
     </div>

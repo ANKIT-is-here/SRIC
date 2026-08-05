@@ -88,7 +88,7 @@ function TurnableSealCard() {
             fontSize: 'clamp(20px, 3vw, 32px)', lineHeight: '1.5', fontWeight: '600', color: '#f5f5f0', textAlign: 'center',
             textShadow: '0 4px 20px rgba(0,0,0,0.8)', margin: 0
           }}>
-            The SEC / SEAL Lab at IIT Kharagpur is pioneering the next generation of cryptographic privacy. We believe that security shouldn't come at the cost of utility. With Searchable Symmetric Encryption, your data remains cryptographically locked on untrusted servers, while still giving you the power to find exactly what you need in milliseconds. <br/><br/><span style={{ color: '#ffd208', fontSize: '1.1em' }}>No compromises. No plaintext.</span>
+            The SEAL Lab at IIT Kharagpur is pioneering the next generation of cryptographic privacy. We believe that security shouldn't come at the cost of utility. With Searchable Symmetric Encryption, your data remains cryptographically locked on untrusted servers, while still giving you the power to find exactly what you need in milliseconds. <br/><br/><span style={{ color: '#ffd208', fontSize: '1.1em' }}>No compromises. No plaintext.</span>
           </p>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function About() {
               },
               {
                 title: 'Numeric FHE queries',
-                body: 'Running aggregate operations like sum, average, and filter directly on encrypted numeric fields using Fully Homomorphic Encryption.',
+                body: 'Encrypted Boolean function evaluation: Using fast encrypted table lookups of SSE to support efficient Boolean function evaluations over encrypted inputs.',
               },
             ].map((item, i) => (
               <div key={i} style={{ padding: '32px 28px', background: '#0d0d0d', borderRight: i < 2 ? '1px solid #1a1a1a' : 'none' }}>
@@ -167,7 +167,7 @@ export default function About() {
 //     return () => window.removeEventListener('scroll', handleScroll);
 //   }, []);
 //
-//   const text = "The SEC / SEAL Lab at IIT Kharagpur is pioneering the next generation of cryptographic privacy. We believe that security shouldn't come at the cost of utility. With Searchable Symmetric Encryption, your data remains cryptographically locked on untrusted servers, while still giving you the power to find exactly what you need in milliseconds. No compromises. No plaintext.";
+//   const text = "The SEAL Lab at IIT Kharagpur is pioneering the next generation of cryptographic privacy. We believe that security shouldn't come at the cost of utility. With Searchable Symmetric Encryption, your data remains cryptographically locked on untrusted servers, while still giving you the power to find exactly what you need in milliseconds. No compromises. No plaintext.";
 //   const words = text.split(" ");
 //
 //   return (

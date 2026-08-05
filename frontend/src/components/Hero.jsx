@@ -49,7 +49,7 @@ export default function Hero({ onDemo }) {
       <ParticleNetwork />
       <div className="container" style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '60px' }}>
         <div ref={ref} className="fade-up" style={{ textAlign: 'center', maxWidth: 1000, margin: '0 auto' }}>
-          <div className="label" style={{ marginBottom: 24, justifyContent: 'center', display: 'flex' }}>SEC / SEAL Lab, IIT Kharagpur</div>
+          <div className="label" style={{ marginBottom: 24, justifyContent: 'center', display: 'flex' }}>SEAL Lab, IIT Kharagpur</div>
           <h1 className="heading-xl" style={{ marginBottom: 24, fontSize: 'clamp(26px, 4.5vw, 54px)', lineHeight: 1.15 }}>
             Search <span>{text}<span className="typing-cursor" style={{ display: 'inline-block', marginLeft: '2px' }}>_</span></span><br />
             <span className="yellow" style={{ fontSize: 'clamp(20px, 3.8vw, 50px)' }}>Searchable Symmetric Encryption</span>

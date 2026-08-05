@@ -283,7 +283,7 @@ export default function TryYourOwnFiles() {
         word_ids: ids,
         matchingDocs: matchingDocs,
         output: searchData.output,
-        time: "0.28 ms"
+        time: "280 µs"
       });
     } catch (err) {
       addLog(`Failed secure query: ${err.message}`, 'error');
