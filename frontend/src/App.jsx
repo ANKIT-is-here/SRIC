@@ -17,11 +17,11 @@ export default function App() {
     if (page !== 'home') return;
     const onScroll = () => {
       setScrolled(window.scrollY > 20);
-      const sections = ['hero', 'how', 'about', 'contact'];
+      const sections = ['hero', 'how', 'about', 'contact', 'team'];
       for (const id of sections) {
         const el = document.getElementById(id);
         if (el) {
-          const top = el.offsetTop - 100;
+          const top = el.getBoundingClientRect().top + window.scrollY - 100;
           const bot = top + el.offsetHeight;
           if (window.scrollY >= top && window.scrollY < bot) {
             setActive(id);
@@ -36,7 +36,10 @@ export default function App() {
 
   const scrollTo = (id) => {
     const el = document.getElementById(id);
-    if (el) window.scrollTo({ top: el.offsetTop - 64, behavior: 'smooth' });
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - 64;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
   };
 
   const goDemo = () => {
@@ -59,18 +62,18 @@ export default function App() {
             SSE <span>Search Engine</span>
           </div>
 
+          <div className="nav-links">
+            <button className={`nav-link ${active === 'hero' && page === 'home' ? 'active' : ''}`} onClick={() => { if (page !== 'home') { setPage('home'); setTimeout(() => scrollTo('hero'), 100); } else scrollTo('hero'); }}>Home</button>
+            <button className={`nav-link ${active === 'how' && page === 'home' ? 'active' : ''}`} onClick={() => { if (page !== 'home') { setPage('home'); setTimeout(() => scrollTo('how'), 100); } else scrollTo('how'); }}>How it works</button>
+            <button className={`nav-link ${active === 'about' && page === 'home' ? 'active' : ''}`} onClick={() => { if (page !== 'home') { setPage('home'); setTimeout(() => scrollTo('about'), 100); } else scrollTo('about'); }}>About</button>
+            <button className={`nav-link ${active === 'contact' && page === 'home' ? 'active' : ''}`} onClick={() => { if (page !== 'home') { setPage('home'); setTimeout(() => scrollTo('contact'), 100); } else scrollTo('contact'); }}>Contact</button>
+            <button className={`nav-link ${active === 'team' && page === 'home' ? 'active' : ''}`} onClick={() => { if (page !== 'home') { setPage('home'); setTimeout(() => scrollTo('team'), 100); } else scrollTo('team'); }}>Team</button>
+          </div>
+
           {page === 'home' ? (
-            <>
-              <div className="nav-links">
-                <button className={`nav-link ${active === 'hero' ? 'active' : ''}`} onClick={() => scrollTo('hero')}>Home</button>
-                <button className={`nav-link ${active === 'how' ? 'active' : ''}`} onClick={() => scrollTo('how')}>How it works</button>
-                <button className={`nav-link ${active === 'about' ? 'active' : ''}`} onClick={() => scrollTo('about')}>About</button>
-                <button className={`nav-link ${active === 'contact' ? 'active' : ''}`} onClick={() => scrollTo('contact')}>Contact</button>
-              </div>
-              <button className="nav-cta" onClick={goDemo}>Try the demo</button>
-            </>
+            <button className="nav-cta" onClick={goDemo}>Try the demo</button>
           ) : (
-            <button className="btn-ghost btn" onClick={goHome} style={{ fontSize: 13, padding: '6px 16px' }}>Back to site</button>
+            <button className="btn-ghost btn" onClick={goHome} style={{ fontSize: 12, padding: '6px 14px', flexShrink: 0 }}>Back to site</button>
           )}
         </div>
       </nav>
