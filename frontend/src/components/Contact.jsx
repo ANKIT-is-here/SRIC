@@ -8,82 +8,37 @@ export default function Contact() {
     return () => obs.disconnect();
   }, []);
 
+  const contacts = [
+    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', email: 'debdeep.mukhopadhyay@gmail.com', highlight: true },
+    { name: 'Debadrita Talapatra', role: 'Research & Development', email: 'debadritat.fg2219@gmail.com', highlight: false }
+  ];
+
   const teams = [
     {
       category: 'Research & Development',
       members: [
         { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', highlight: true },
-        { name: 'Debadrita Talapatra', role: 'Research Lead' },
-        { name: 'Nimish Mishra', role: 'Researcher' },
+        { name: 'Debadrita Talapatra' },
+        { name: 'Nimish Mishra' },
       ]
     },
     {
       category: 'Website Development',
       members: [
-        { name: 'Harsh Sharma', role: 'Frontend Engineer' },
-        { name: 'Ankit Pal', role: 'Full Stack Engineer' },
-        { name: 'Manjunath Talari', role: 'Developer' },
+        { name: 'Harsh Sharma' },
+        { name: 'Ankit Pal' },
+        { name: 'Manjunath Talari' },
       ]
     }
-  ];
-
-  const contacts = [
-    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', email: 'debdeep.mukhopadhyay@gmail.com', highlight: true },
-    { name: 'Debadrita Talapatra', role: 'Research & Development Lead', email: 'debadritat.fg2219@gmail.com', highlight: false }
   ];
 
   return (
     <div className="section" style={{ borderTop: '1px solid #1a1a1a' }}>
       <div className="container">
         <div ref={ref} className="fade-up">
-          {/* Meet the Team Section */}
-          <div className="label" style={{ marginBottom: 16 }}>Our Team</div>
-          <h2 className="heading-lg" style={{ marginBottom: 44 }}>Meet the Team</h2>
-
-          {teams.map((group, gIdx) => (
-            <div key={gIdx} style={{ marginBottom: 40 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 600, color: '#ffd208', marginBottom: 20, letterSpacing: '-0.01em', fontFamily: 'Space Grotesk, sans-serif' }}>
-                {group.category}
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
-                {group.members.map((m, i) => (
-                  <div
-                    key={i}
-                    className="card"
-                    style={m.highlight ? {
-                      border: '1px solid rgba(255, 210, 8, 0.6)',
-                      background: 'linear-gradient(135deg, rgba(255, 210, 8, 0.1) 0%, rgba(18, 18, 18, 0.95) 100%)',
-                      boxShadow: '0 0 25px rgba(255, 210, 8, 0.15)',
-                      position: 'relative'
-                    } : {}}
-                  >
-                    {m.highlight && (
-                      <div style={{
-                        fontSize: 10,
-                        fontFamily: 'Space Mono, monospace',
-                        color: '#ffd208',
-                        background: 'rgba(255, 210, 8, 0.15)',
-                        border: '1px solid rgba(255, 210, 8, 0.3)',
-                        borderRadius: 4,
-                        padding: '2px 8px',
-                        display: 'inline-block',
-                        marginBottom: 10,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em'
-                      }}>
-                        {m.role}
-                      </div>
-                    )}
-                    <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0', marginBottom: m.highlight ? 0 : 4 }}>{m.name}</div>
-                    {!m.highlight && <div style={{ fontSize: 12, color: '#777', fontFamily: 'Space Mono, monospace' }}>{m.role}</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/* Contact Us Section */}
-          <div id="contact" style={{ marginTop: 56, paddingTop: 48, borderTop: '1px dashed #222' }}>
+          
+          {/* 1. Contact Us Section (ABOVE Team) */}
+          <div id="contact" style={{ marginBottom: 56 }}>
             <div className="label" style={{ marginBottom: 16 }}>Get in Touch</div>
             <h2 className="heading-lg" style={{ marginBottom: 32 }}>Contact Us</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
@@ -126,6 +81,56 @@ export default function Contact() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px dashed #222', marginBottom: 48 }} />
+
+          {/* 2. Meet the Team Section (BELOW Contact) */}
+          <div id="team">
+            <div className="label" style={{ marginBottom: 16 }}>Our Team</div>
+            <h2 className="heading-lg" style={{ marginBottom: 44 }}>Meet the Team</h2>
+
+            {teams.map((group, gIdx) => (
+              <div key={gIdx} style={{ marginBottom: 40 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: '#ffd208', marginBottom: 20, letterSpacing: '-0.01em', fontFamily: 'Space Grotesk, sans-serif' }}>
+                  {group.category}
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+                  {group.members.map((m, i) => (
+                    <div
+                      key={i}
+                      className="card"
+                      style={m.highlight ? {
+                        border: '1px solid rgba(255, 210, 8, 0.6)',
+                        background: 'linear-gradient(135deg, rgba(255, 210, 8, 0.1) 0%, rgba(18, 18, 18, 0.95) 100%)',
+                        boxShadow: '0 0 25px rgba(255, 210, 8, 0.15)',
+                        position: 'relative'
+                      } : {}}
+                    >
+                      {m.highlight && (
+                        <div style={{
+                          fontSize: 10,
+                          fontFamily: 'Space Mono, monospace',
+                          color: '#ffd208',
+                          background: 'rgba(255, 210, 8, 0.15)',
+                          border: '1px solid rgba(255, 210, 8, 0.3)',
+                          borderRadius: 4,
+                          padding: '2px 8px',
+                          display: 'inline-block',
+                          marginBottom: 10,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em'
+                        }}>
+                          {m.role}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0' }}>{m.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
         </div>
