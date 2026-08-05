@@ -9,25 +9,25 @@ export default function Contact() {
   }, []);
 
   const contacts = [
-    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', email: 'debdeep.mukhopadhyay@gmail.com', highlight: true },
-    { name: 'Debadrita Talapatra', role: 'Research & Development', email: 'debadritat.fg2219@gmail.com', highlight: false }
+    { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', affiliation: 'SEAL Lab, IIT Kharagpur', email: 'debdeep.mukhopadhyay@gmail.com', highlight: true },
+    { name: 'Debadrita Talapatra', role: 'Research & Development', affiliation: 'SEAL Lab, IIT Kharagpur', email: 'debadritat.fg2219@gmail.com', highlight: false }
   ];
 
   const teams = [
     {
       category: 'Research & Development',
       members: [
-        { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', highlight: true },
-        { name: 'Debadrita Talapatra' },
-        { name: 'Nimish Mishra' },
+        { name: 'Prof. Debdeep Mukhopadhyay', role: 'Faculty Lead / Advisor', affiliation: 'SEAL Lab, IIT Kharagpur', highlight: true },
+        { name: 'Debadrita Talapatra', affiliation: 'SEAL Lab, IIT Kharagpur' },
+        { name: 'Nimish Mishra', affiliation: 'SEAL Lab, IIT Kharagpur' },
       ]
     },
     {
       category: 'Website Development',
       members: [
-        { name: 'Harsh Sharma' },
-        { name: 'Ankit Pal' },
-        { name: 'Manjunath Talari' },
+        { name: 'Harsh Sharma', affiliation: 'Student, IIT Kharagpur' },
+        { name: 'Ankit Pal', affiliation: 'Student, IIT Kharagpur' },
+        { name: 'Manjunath Talari', affiliation: 'Student, IIT Kharagpur' },
       ]
     }
   ];
@@ -55,7 +55,8 @@ export default function Contact() {
                   <div style={{ fontSize: 10, fontFamily: 'Space Mono, monospace', color: c.highlight ? '#ffd208' : '#888', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
                     {c.role}
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 14 }}>{c.name}</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: '#888', fontFamily: 'Space Mono, monospace', marginBottom: 16 }}>{c.affiliation}</div>
                   <a
                     href={`mailto:${c.email}`}
                     style={{
@@ -125,7 +126,8 @@ export default function Contact() {
                           {m.role}
                         </div>
                       )}
-                      <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0' }}>{m.name}</div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: m.highlight ? '#fff' : '#f5f5f0', marginBottom: 4 }}>{m.name}</div>
+                      <div style={{ fontSize: 12, color: m.highlight ? '#ffd208cc' : '#888', fontFamily: 'Space Mono, monospace' }}>{m.affiliation}</div>
                     </div>
                   ))}
                 </div>
