@@ -1097,68 +1097,30 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
                   </div>
                 ) : (
                   <>
-                    {/* Real numbers from ntru-oqxt-search */}
-                    <div style={{display:"flex",gap:20,marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6}}>
-                      {[
-                        ["N IDs TSet",  result.ntset       ?? "-"],
-                        ["Nmatch",       result.nmatch      ?? "-"],
-                        ["Binary time",  result.timingUs    != null ? `${result.timingUs.toLocaleString()} us` : "-"],
-                        ["Total (incl. overhead)", result.timeTakenMs != null ? `${result.timeTakenMs} ms` : "-"],
-                      ].map(([k,v])=>(
-                        <div key={k} style={{fontFamily:"Space Mono,monospace",fontSize:10}}>
-                          <div style={{color:"#ffd208",fontWeight:700,fontSize:13}}>{v}</div>
-                          <div style={{color:"#555",marginTop:2}}>{k}</div>
-                        </div>
-                      ))}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:10}}>
+                      <div style={{fontSize:12,color:"#ccc"}}>
+                        {result.matchedDocNames?.length ? `${result.matchedDocNames.length} document${result.matchedDocNames.length>1?"s":""} matched` : "No documents matched"}
+                      </div>
+                      <div style={{fontSize:11,color:"#ffd208",fontFamily:"Space Mono,monospace"}}>
+                        {result.timingUs != null ? `${result.timingUs.toLocaleString()} µs` : result.timeTakenMs != null ? `${result.timeTakenMs} ms` : "-"}
+                      </div>
                     </div>
 
                     {/* Matched doc names with download, or no-match notice */}
                     {result.matchedDocNames?.length > 0 ? (
                       <div style={{marginBottom:14}}>
-                        <div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>
-                          Documents containing {result.words.join(" and ")}
-                        </div>
                         {result.matchedDocNames.map(n=><DocResult key={n} docName={n} vaultMap={vaultMap}/>)}
                       </div>
                     ) : (
-                      result.wordIds?.length > 0 && (
-                        <div style={{marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,fontFamily:"Space Mono,monospace",fontSize:12,color:"#666"}}>
-                          No documents matched your query.
-                        </div>
-                      )
-                    )}
-
-
-                    {result.notFound?.length > 0 && (
-                      <div style={{fontSize:11,color:"#666",marginBottom:10,fontFamily:"Space Mono,monospace"}}>
-                        Not in vocabulary: {result.notFound.join(", ")}
+                      <div style={{marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,fontFamily:"Space Mono,monospace",fontSize:12,color:"#666"}}>
+                        No documents matched your query.
                       </div>
                     )}
 
-                    {/* Word IDs sent to binary */}
-                    {result.wordIds?.length > 0 && (
-                      <>
-                        <div style={{fontSize:11,color:"#777",marginBottom:6}}>
-                          Word IDs sent to {result.qtype==="or" ? "odxt-cli" : "ntru-oqxt-search"}. Server never sees plaintext keywords:
-                        </div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:result.wordIds.length>1?10:0}}>
-                          {result.wordIds.map((id,i)=>(
-                            <span key={id} style={{fontFamily:"Space Mono,monospace",fontSize:10,color:result.qtype==="and"&&i===0?"#ffd208":result.qtype==="and"?"#a78bfa":"#ffd208",background:result.qtype==="and"&&i===0?"#ffd20810":result.qtype==="and"?"#a78bfa10":"#ffd20810",border:`1px solid ${result.qtype==="and"&&i===0?"#ffd20833":result.qtype==="and"?"#a78bfa33":"#ffd20833"}`,borderRadius:4,padding:"3px 8px"}}>
-                              {id}{result.qtype==="and"&&<span style={{opacity:0.5,marginLeft:4,fontSize:9}}>{i===0?"(s-term)":"(x-term)"}</span>}
-                            </span>
-                          ))}
-                        </div>
-                        {result.qtype==="and"&&result.wordIds.length>1&&(
-                          <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
-                            s-term TSet chain retrieved first. XTag computed for each x-term against each candidate, then checked against the bloom filter.
-                          </div>
-                        )}
-                        {result.qtype==="or"&&result.wordIds.length>1&&(
-                          <div style={{fontSize:11,color:"#666",marginTop:8,lineHeight:1.6}}>
-                            Each keyword ID is bucketized and searched independently against its own encrypted postings; the final result is the union across all of them.
-                          </div>
-                        )}
-                      </>
+                    {result.notFound?.length > 0 && (
+                      <div style={{fontSize:11,color:"#666",marginTop:8,fontFamily:"Space Mono,monospace"}}>
+                        Not in vocabulary: {result.notFound.join(", ")}
+                      </div>
                     )}
                   </>
                 )
