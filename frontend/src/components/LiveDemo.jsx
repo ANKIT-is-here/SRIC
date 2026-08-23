@@ -911,12 +911,8 @@ function RDBMSPanel({mode,tableData,dbIndex}){
             ))}
           </div>
 
-          {result.binaryOutput&&(
-            <div style={{marginBottom:14,padding:"8px 12px",background:"#050505",border:"1px solid #1a1a1a",borderRadius:4,fontFamily:"Space Mono,monospace",fontSize:10,color:"#777"}}>
-              <div style={{color:"#ffd208",marginBottom:4,fontWeight:600}}>⚡ Real C++ Binary Stdout (Port :{result.port}):</div>
-              <pre style={{margin:0,whiteSpace:"pre-wrap",color:"#aaa"}}>{result.binaryOutput}</pre>
-            </div>
-          )}
+
+
 
           {result.hits.length>0&&(()=>{
             const groups={};
@@ -1116,20 +1112,22 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
                       ))}
                     </div>
 
-                    {/* Raw binary stdout */}
-                    {result.output&&(
-                      <pre style={{fontFamily:"Space Mono,monospace",fontSize:10,color:"#4ade80",background:"#0a1a0a",border:"1px solid #4ade8022",borderRadius:4,padding:"8px 10px",margin:"0 0 14px",whiteSpace:"pre-wrap"}}>{result.output.trim()}</pre>
-                    )}
-
-                    {/* Matched doc names with download */}
-                    {result.matchedDocNames?.length > 0 && (
+                    {/* Matched doc names with download, or no-match notice */}
+                    {result.matchedDocNames?.length > 0 ? (
                       <div style={{marginBottom:14}}>
                         <div style={{fontSize:10,color:"#666",fontFamily:"Space Mono,monospace",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>
                           Documents containing {result.words.join(" and ")}
                         </div>
                         {result.matchedDocNames.map(n=><DocResult key={n} docName={n} vaultMap={vaultMap}/>)}
                       </div>
+                    ) : (
+                      result.wordIds?.length > 0 && (
+                        <div style={{marginBottom:14,padding:"10px 14px",background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,fontFamily:"Space Mono,monospace",fontSize:12,color:"#666"}}>
+                          No documents matched your query.
+                        </div>
+                      )
                     )}
+
 
                     {result.notFound?.length > 0 && (
                       <div style={{fontSize:11,color:"#666",marginBottom:10,fontFamily:"Space Mono,monospace"}}>
