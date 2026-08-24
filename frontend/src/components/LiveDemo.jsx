@@ -1029,8 +1029,8 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
           <button key={id} onClick={()=>{
             setQtype(id);
             setResult(null);
-            if (id === "single" && input.includes(",")) {
-              setInput(input.split(",")[0].trim());
+            if (id === "single") {
+              setInput(input.split(/[\s,]+/)[0].trim());
             }
           }}
             style={{padding:"6px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"Space Mono,monospace",background:qtype===id?"#ffd20815":"transparent",color:qtype===id?"#ffd208":"#888",border:`1px solid ${qtype===id?"#ffd20844":"#1a1a1a"}`,transition:"all 0.15s"}}>
@@ -1058,7 +1058,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
               onChange={e=>{
                 let val = e.target.value;
                 if (qtype === "single") {
-                  val = val.replace(/,/g, "");
+                  val = val.replace(/[\s,]+/g, "");
                 }
                 setInput(val);
                 setResult(null);
@@ -1066,7 +1066,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
               onKeyDown={e=>{
                 if (e.key === "Enter") {
                   handleSearch();
-                } else if (qtype === "single" && e.key === ",") {
+                } else if (qtype === "single" && (e.key === "," || e.key === " ")) {
                   e.preventDefault();
                 }
               }}
