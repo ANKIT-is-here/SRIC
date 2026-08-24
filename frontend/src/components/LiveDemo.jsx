@@ -400,8 +400,9 @@ async function sseSearch(backendUrl, qtype, terms, wordToId, indexedKws) {
   const words   = found.map(r => r.word);
 
   // Client-side preview of the expected result set (client knows this in
-  // plaintext): intersection for and/single, union for or.
-  const lists = words.map(w => indexedKws[w] || []);
+  // plaintext): intersection across all terms for and/single, union of found words for or.
+  const queryTerms = qtype === "or" ? words : terms.map(t => t.toLowerCase().trim());
+  const lists = queryTerms.map(w => indexedKws[w] || []);
   const matchedDocNames = !lists.length ? []
     : qtype === "or" ? [...new Set(lists.flat())]
     : lists.reduce((a,b) => a.filter(d => b.includes(d)));
@@ -427,15 +428,17 @@ async function sseSearch(backendUrl, qtype, terms, wordToId, indexedKws) {
   const nmatchMatch = output.match(/Nmatch: (\d+)/);
   const ntsetMatch  = output.match(/N IDs TSet: (\d+)/);
 
+  const isAndMiss = qtype !== "or" && notFound.length > 0;
+
   return {
     ok: true,
     wordIds,
     words,
     notFound,
-    matchedDocNames,
+    matchedDocNames: isAndMiss ? [] : matchedDocNames,
     timingUs:    timeMatch   ? parseInt(timeMatch[1])   : null,
     timeTakenMs: conjData.time_taken ?? null,
-    nmatch:      nmatchMatch ? parseInt(nmatchMatch[1]) : null,
+    nmatch:      isAndMiss ? 0 : (nmatchMatch ? parseInt(nmatchMatch[1]) : null),
     ntset:       ntsetMatch  ? parseInt(ntsetMatch[1])  : null,
     output,
   };
