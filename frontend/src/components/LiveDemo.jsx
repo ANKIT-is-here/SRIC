@@ -973,9 +973,15 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
   const sseReady  = backendStatus==="online" && uploadStatus==="done";
 
   async function handleSearch(){
-    const terms = input.split(/,/).map(s=>s.trim()).filter(Boolean);
-    const t = qtype==="single" ? terms.slice(0,1) : terms;
-    if(!hasVault||!t.length) return;
+    let terms = input.split(/,/).map(s=>s.trim()).filter(Boolean);
+    if (qtype === "single") {
+      if (terms.length > 0) {
+        const singleWord = terms[0].split(/\s+/)[0].trim();
+        terms = singleWord ? [singleWord] : [];
+      }
+    }
+    if(!hasVault||!terms.length) return;
+    const t = terms;
 
     if(mode==="regular"){
       setResult({type:"regular",qtype,...regularSearch(qtype,t,indexedKws),terms:t});
@@ -997,7 +1003,7 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
     }
   }
 
-  const placeholder = qtype==="single" ? "e.g. revenue" : "e.g. revenue, profit";
+  const placeholder = qtype==="single" ? "e.g. revenue (single keyword only)" : "e.g. revenue, profit";
   const hint = qtype==="single" ? "One keyword. Any word from the uploaded documents works."
     : qtype==="or" ? (mode==="sse"
         ? "Two or more keywords separated by commas. Each is bucketized and searched independently, then results are unioned."
@@ -1020,7 +1026,13 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
 
       <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
         {QTYPES.map(([id,label])=>(
-          <button key={id} onClick={()=>{setQtype(id);setResult(null);}}
+          <button key={id} onClick={()=>{
+            setQtype(id);
+            setResult(null);
+            if (id === "single" && input.includes(",")) {
+              setInput(input.split(",")[0].trim());
+            }
+          }}
             style={{padding:"6px 12px",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"Space Mono,monospace",background:qtype===id?"#ffd20815":"transparent",color:qtype===id?"#ffd208":"#888",border:`1px solid ${qtype===id?"#ffd20844":"#1a1a1a"}`,transition:"all 0.15s"}}>
             {label}
           </button>
@@ -1042,7 +1054,22 @@ function SearchConsole({vault,indexedKws,vaultMap,tableData,dbIndex,backendStatu
           )}
 
           <div style={{display:"flex",gap:8,marginBottom:6}}>
-            <input value={input} onChange={e=>{setInput(e.target.value);setResult(null);}} onKeyDown={e=>e.key==="Enter"&&handleSearch()}
+            <input value={input}
+              onChange={e=>{
+                let val = e.target.value;
+                if (qtype === "single") {
+                  val = val.replace(/,/g, "");
+                }
+                setInput(val);
+                setResult(null);
+              }}
+              onKeyDown={e=>{
+                if (e.key === "Enter") {
+                  handleSearch();
+                } else if (qtype === "single" && e.key === ",") {
+                  e.preventDefault();
+                }
+              }}
               placeholder={placeholder} disabled={!hasVault||(mode==="sse"&&!sseReady)||busy}
               style={{flex:1,padding:"10px 14px",fontSize:13,background:"#0a0a0a",border:"1px solid #1a1a1a",borderRadius:6,color:"#f5f5f0",fontFamily:"Space Grotesk, sans-serif",outline:"none"}}
               onFocus={e=>e.target.style.borderColor="#ffd208"} onBlur={e=>e.target.style.borderColor="#1a1a1a"}/>
